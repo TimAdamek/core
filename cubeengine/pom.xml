@@ -34,7 +34,12 @@
     <dependency>
       <groupId>de.cubeisland.engine</groupId>
       <artifactId>configuration</artifactId>
-      <version>1.0.2</version>
+      <version>1.0.3</version>
+    </dependency>
+    <dependency>
+      <groupId>de.cubeisland.engine</groupId>
+      <artifactId>logging</artifactId>
+      <version>0.0.2-SNAPSHOT</version>
     </dependency>
     <dependency>
       <groupId>com.ibm.icu</groupId>

@@ -15,18 +15,23 @@
  * You should have received a copy of the GNU General Public License
  * along with CubeEngine.  If not, see <http://www.gnu.org/licenses/>.
  */
-package de.cubeisland.engine.core.logging;
+package de.cubeisland.engine.core.util;
 
-import java.util.logging.Logger;
+import java.util.HashMap;
+import java.util.Map;
 
-import de.cubeisland.engine.core.Core;
-import de.cubeisland.engine.core.module.ModuleInfo;
+import junit.framework.TestCase;
 
-public class ModuleLogger extends JulLog
+public class MacroProcessorTest extends TestCase
 {
-    public ModuleLogger(Logger julLogger, ModuleInfo info, Core core)
+    public void testProcess() throws Exception
     {
-        super(julLogger, core, info.getName());
-        this.setPrefix("[" + info.getName() + "] ");
+        MacroProcessor processor = new MacroProcessor();
+
+        Map<String, String> args = new HashMap<>();
+        args.put("parameter1", "value1");
+        args.put("PARAMETER2", "value2");
+
+        assertEquals("test {normal textvalue1 or }value2", processor.process("test \\{normal text{parameter1} or }{PARAMETER2}", args));
     }
 }

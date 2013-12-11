@@ -32,10 +32,10 @@ import de.cubeisland.engine.configuration.annotations.Comment;
 import de.cubeisland.engine.configuration.annotations.Name;
 import de.cubeisland.engine.configuration.codec.ConverterManager;
 import de.cubeisland.engine.configuration.exception.ConversionException;
-import de.cubeisland.engine.core.logging.Log;
 import de.cubeisland.engine.core.module.Module;
 import de.cubeisland.engine.core.storage.database.Database;
 import de.cubeisland.engine.core.task.TaskManager;
+import de.cubeisland.engine.logging.Log;
 import de.cubeisland.engine.stats.annotations.Configured;
 import de.cubeisland.engine.stats.annotations.Scheduled;
 import de.cubeisland.engine.stats.configuration.DynamicSection;
@@ -107,13 +107,16 @@ public class StatsManager
         {
             throw new IllegalStateException("StatsManager not started!");
         }
+
         try
         {
             // Get the Constructor, and construct a new instance of the Stat.
-            Constructor<? extends Stat> constructor = statType.getConstructor(this.getClass(), Module.class);
-            Stat stat = constructor.newInstance(this, this.module);
+            Constructor<? extends Stat> constructor = statType.getConstructor();
+            Stat stat = constructor.newInstance();
+            Method init = statType.getMethod("init", this.getClass(), Module.class);
+            init.invoke(stat, this, this.module);
 
-            // Get or register the stat id
+            // Get or register the stat in the database
             if (!registeredStats.contains(statType))
             {
                 synchronized (this.dsl)
@@ -133,11 +136,18 @@ public class StatsManager
                 {
                     return;
                 }
+
                 String name = field.getName();
+                String[] comment = {};
                 if (field.isAnnotationPresent(Name.class))
                 {
                     Name nameAnnotation = field.getAnnotation(Name.class);
                     name = nameAnnotation.value();
+                }
+                if (field.isAnnotationPresent(Comment.class))
+                {
+                    Comment commentAnnotation = field.getAnnotation(Comment.class);
+                    comment = commentAnnotation.value();
                 }
 
                 if (!module.getConfig().statConfigs.containsKey(statType.getSimpleName()))
@@ -145,23 +155,20 @@ public class StatsManager
                     module.getConfig().statConfigs.put(statType.getSimpleName(), new DynamicSection(converterManager));
                 }
                 DynamicSection section = module.getConfig().statConfigs.get(statType.getSimpleName());
+
                 if (section.hasKey(name))
                 {
+                    section.getNode(name).setComments(comment);
                     field.set(stat, section.get(name));
-                    continue;
                 }
-
-                String[] comment = {};
-                if (field.isAnnotationPresent(Comment.class))
+                else
                 {
-                    Comment commentAnnotation = field.getAnnotation(Comment.class);
-                    comment = commentAnnotation.value();
+                    section.put(name, field.get(stat), comment);
                 }
-                section.put(name, field.get(stat), comment);
             }
 
             // Activate hook in the stat
-            stat.onActivate();
+            stat.activate();
 
             // Register Schedulers
             for (Method method : stat.getClass().getMethods())
@@ -188,10 +195,18 @@ public class StatsManager
                     {
                         section.put("tasks", new DynamicSection(converterManager), "Intervals for the tasks this statistic schedules");
                     }
+                    else
+                    {
+                        section.getNode("tasks").setComments(new String[]{"Intervals for the tasks this statistic schedules"});
+                    }
                     DynamicSection tasks = (DynamicSection)section.get("tasks", DynamicSection.class);
                     if (!tasks.hasKey(annotation.name()))
                     {
                         tasks.put(annotation.name(), annotation.interval(), annotation.comment());
+                    }
+                    else
+                    {
+                        tasks.getNode(annotation.name()).setComments(annotation.comment());
                     }
                     interval = (Long)tasks.get(annotation.name(), Long.class);
                 }
@@ -214,12 +229,12 @@ public class StatsManager
 
                 this.module.getLog().debug("Scheduled method {} at interval {}", annotation.name(), interval);
             }
-
         }
         catch (ReflectiveOperationException | ConversionException ex)
         {
             this.module.getLog().error(ex, "An error occurred while registering statistic");
         }
+        this.module.getLog().debug("Registered statistic {}.", statType.getSimpleName());
     }
 
     public void disableStat(Class<? extends Stat> stat)
@@ -235,7 +250,7 @@ public class StatsManager
                 this.module.getCore().getTaskManager().cancelTask(this.module, id);
             }
         }
-        this.stats.get(stat).onDeactivate();
+        this.stats.get(stat).deactivate();
     }
 
     /**

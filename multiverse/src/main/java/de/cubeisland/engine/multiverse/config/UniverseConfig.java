@@ -15,22 +15,32 @@
  * You should have received a copy of the GNU General Public License
  * along with CubeEngine.  If not, see <http://www.gnu.org/licenses/>.
  */
-package de.cubeisland.engine.core.logging;
+package de.cubeisland.engine.multiverse.config;
 
-public class LoggingException extends Exception
+import java.io.File;
+
+import org.bukkit.World;
+
+import de.cubeisland.engine.configuration.YamlConfiguration;
+
+public class UniverseConfig extends YamlConfiguration
 {
-    public LoggingException(Throwable t)
+    public World mainWorld;
+
+    public boolean keepGameMode = false; // if false can use perm
+    public boolean keepFlyMode = false; // if false can use perm
+
+    @Override
+    public void onLoaded(File loadedFrom)
     {
-        super(t);
+        // TODO search for unknown but loaded worlds matching pattern
+        // main world is: world
+        // matching pattern would be any world with
+        // world_something_else
+
+        // TODO when loading UniverseConfigs
+        // check for missing universes
     }
 
-    public LoggingException(String m, Throwable t)
-    {
-        super(m, t);
-    }
 
-    public LoggingException(String m)
-    {
-        super(m);
-    }
 }

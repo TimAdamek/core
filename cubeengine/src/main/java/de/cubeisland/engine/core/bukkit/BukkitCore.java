@@ -64,8 +64,6 @@ import de.cubeisland.engine.core.command.commands.VanillaCommands;
 import de.cubeisland.engine.core.command.commands.VanillaCommands.WhitelistCommand;
 import de.cubeisland.engine.core.command.reflected.ReflectedCommandFactory;
 import de.cubeisland.engine.core.i18n.I18n;
-import de.cubeisland.engine.core.logging.Level;
-import de.cubeisland.engine.core.logging.Log;
 import de.cubeisland.engine.core.logging.LogFactory;
 import de.cubeisland.engine.core.module.Module;
 import de.cubeisland.engine.core.recipe.RecipeManager;
@@ -93,6 +91,8 @@ import de.cubeisland.engine.core.webapi.ApiConfig;
 import de.cubeisland.engine.core.webapi.ApiServer;
 import de.cubeisland.engine.core.webapi.exception.ApiStartupException;
 import de.cubeisland.engine.core.world.TableWorld;
+import de.cubeisland.engine.logging.Log;
+import de.cubeisland.engine.logging.LogLevel;
 
 import static de.cubeisland.engine.core.util.ReflectionUtils.findFirstField;
 import static de.cubeisland.engine.core.util.ReflectionUtils.getFieldValue;
@@ -164,7 +164,7 @@ public final class BukkitCore extends JavaPlugin implements Core
 
         this.configFactory = new ConfigurationFactory();
         ConverterManager manager = this.configFactory.getDefaultConverterManager();
-        manager.registerConverter(Level.class, new LevelConverter());
+        manager.registerConverter(LogLevel.class, new LevelConverter());
         manager.registerConverter(ItemStack.class, new ItemStackConverter());
         manager.registerConverter(Material.class, new MaterialConverter());
         manager.registerConverter(Enchantment.class, new EnchantmentConverter());
@@ -198,12 +198,7 @@ public final class BukkitCore extends JavaPlugin implements Core
         this.fileManager.dropResources(CoreResource.values());
 
         // depends on: file manager
-        this.config = configFactory.load(BukkitCoreConfiguration.class, this.fileManager.getDataPath()
-                                                                                        .resolve("core.yml").toFile());
-
-        this.logFactory = new LogFactory(this, this.getLogger()); // , BukkitUtils.isAnsiSupported(server)
-
-        this.logger = logFactory.getCoreLog();
+        this.config = configFactory.load(BukkitCoreConfiguration.class, this.fileManager.getDataPath().resolve("core.yml").toFile());
 
         this.fileManager.clearTempDir();
 
@@ -214,19 +209,26 @@ public final class BukkitCore extends JavaPlugin implements Core
             BukkitUtils.disableCommandLogging();
         }
 
+        // depends on: core config, server
+        this.taskManager = new BukkitTaskManager(this, this.getServer().getScheduler());
+
+        // depends on: taskmanager
+        this.logFactory = new LogFactory(this, this.getLogger()); // , BukkitUtils.isAnsiSupported(server)
+
+        // depends on: taskmanager
+        this.logger = logFactory.getCoreLog();
+
+        // depends on: object mapper, logger
+        this.apiServer = new ApiServer(this);
+        this.apiServer.configure(configFactory.load(ApiConfig.class, this.fileManager.getDataPath().resolve("webapi.yml").toFile()));
+
+        // depends on: logger
         if (this.config.catchSystemSignals)
         {
             BukkitUtils.setSignalHandlers(this);
         }
-
+        // depends on: logger
         this.packetEventManager = new PacketEventManager(this.logger);
-
-        // depends on: object mapper
-        this.apiServer = new ApiServer(this);
-        this.apiServer.configure(configFactory.load(ApiConfig.class, this.fileManager.getDataPath().resolve("webapi.yml").toFile()));
-
-        // depends on: core config, server
-        this.taskManager = new BukkitTaskManager(this, this.getServer().getScheduler());
 
         if (this.config.useWebapi)
         {
@@ -267,19 +269,22 @@ public final class BukkitCore extends JavaPlugin implements Core
         ArgumentReader.init(this);
 
         // depends on: server
-        SimpleCommandMap commandMap = getFieldValue(server, findFirstField(server, CommandMap.class), SimpleCommandMap.class);
-        CommandBackend commandBackend;
-        if (commandMap.getClass() == SimpleCommandMap.class)
+        CommandMap commandMap = getFieldValue(server, findFirstField(server, CommandMap.class), CommandMap.class);
+        CommandBackend commandBackend = null;
+        if (commandMap != null)
         {
-            commandBackend = new CubeCommandBackend(this);
+            if (commandMap.getClass() == SimpleCommandMap.class)
+            {
+                commandBackend = new CubeCommandBackend(this);
+            }
+            else if (SimpleCommandMap.class.isAssignableFrom(commandMap.getClass()))
+            {
+                this.getLog().warn("The server you are using is not fully compatible, some advanced command features will be disabled.");
+                this.getLog().debug("The type of the command map: {}", commandMap.getClass().getName());
+                commandBackend = new SimpleCommandBackend(this, SimpleCommandMap.class.cast(commandMap));
+            }
         }
-        else if (SimpleCommandMap.class.isAssignableFrom(commandMap.getClass()))
-        {
-            this.getLog().warn("The server you are using is not fully compatible, some advanced command features will be disabled.");
-            this.getLog().debug("The type of the command map: {}", commandMap.getClass().getName());
-            commandBackend = new SimpleCommandBackend(this, commandMap);
-        }
-        else
+        if (commandBackend == null)
         {
             this.getLog().warn("We encountered a serious compatibility issue, however basic command features should still work. Please report this issue to the developers!");
             commandBackend = new FallbackCommandBackend(this);
@@ -463,7 +468,7 @@ public final class BukkitCore extends JavaPlugin implements Core
 
         if (this.logFactory != null)
         {
-            // TODO this.logFactory.shutdown();
+            this.logFactory.shutdown();
         }
 
         if (this.fileManager != null)
@@ -676,7 +681,7 @@ public final class BukkitCore extends JavaPlugin implements Core
     }
 
     @Override
-    public ConfigurationFactory getConfigurationFactory()
+    public ConfigurationFactory getConfigFactory()
     {
         return configFactory;
     }
