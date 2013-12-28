@@ -372,13 +372,13 @@ public class MarketSign
                 else
                 // no sneak -> empty & break signs
                 {
-                    if (!this.getInventory().getViewers().isEmpty())
-                    {
-                        user.sendTranslated("&cThis signs inventory is being edited right now!");
-                        return;
-                    }
                     if (this.isValidSign(null))
                     {
+                        if (!this.getInventory().getViewers().isEmpty())
+                        {
+                            user.sendTranslated("&cThis signs inventory is being edited right now!");
+                            return;
+                        }
                         if (this.isOwner(user) || MarketSignPerm.SIGN_INVENTORY_ACCESS_OTHER.isAuthorized(user))
                         {
                             if (!this.isInEditMode() && this.hasType() && this.isTypeBuy() && this.hasStock() && this.itemInfo.matchesItem(itemInHand))
@@ -488,15 +488,18 @@ public class MarketSign
                         user.sendTranslated("&cThis sign is being edited right now!");
                         return;
                     }
-                    if (!this.getInventory().getViewers().isEmpty())
+                    if (this.isValidSign(null))
                     {
-                        user.sendTranslated("&cThis signs inventory is being edited right now!");
-                        return;
-                    }
-                    if (this.isOwner(user))
-                    {
-                        this.takeItems(user);
-                        return;
+                        if (!this.getInventory().getViewers().isEmpty())
+                        {
+                            user.sendTranslated("&cThis signs inventory is being edited right now!");
+                            return;
+                        }
+                        if (this.isOwner(user))
+                        {
+                            this.takeItems(user);
+                            return;
+                        }
                     }
                     this.useSign(user);
                 }
@@ -1106,7 +1109,7 @@ public class MarketSign
                 else if (this.hasStock())
                 {
                     if (this.isAdminSign() || (this.canAfford(this.getOwner()) &&
-                        !this.isFull() && !(this.hasDemand() && this.isSatisfied())))
+                        !(this.getItem() != null && this.isFull()) && !(this.hasDemand() && this.isSatisfied())))
                     {
                         if (this.hasDemand())
                         {

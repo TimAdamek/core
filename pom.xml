@@ -52,7 +52,11 @@
     <module>fakeanticheat</module>
     <module>stats</module>
     <module>reputation</module>
-    <module>multiverse</module>
+    <module>worlds</module>
+    <module>portals</module>
+    <module>backpack</module>
+    <module>faq</module>
+    <module>selector</module>
   </modules>
 
   <build>

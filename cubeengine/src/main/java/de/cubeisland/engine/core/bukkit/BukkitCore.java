@@ -37,8 +37,6 @@ import org.bukkit.Material;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.Server;
 import org.bukkit.World;
-import org.bukkit.command.CommandMap;
-import org.bukkit.command.SimpleCommandMap;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.generator.ChunkGenerator;
 import org.bukkit.inventory.ItemStack;
@@ -51,12 +49,8 @@ import de.cubeisland.engine.core.Core;
 import de.cubeisland.engine.core.CorePerms;
 import de.cubeisland.engine.core.CoreResource;
 import de.cubeisland.engine.core.CubeEngine;
-import de.cubeisland.engine.core.bukkit.command.CommandBackend;
-import de.cubeisland.engine.core.bukkit.command.CubeCommandBackend;
-import de.cubeisland.engine.core.bukkit.command.FallbackCommandBackend;
-import de.cubeisland.engine.core.bukkit.command.SimpleCommandBackend;
-import de.cubeisland.engine.core.bukkit.packethook.PacketEventManager;
-import de.cubeisland.engine.core.bukkit.packethook.PacketHookInjector;
+import de.cubeisland.engine.core.bukkit.command.CommandInjector;
+import de.cubeisland.engine.core.bukkit.command.PreCommandListener;
 import de.cubeisland.engine.core.command.ArgumentReader;
 import de.cubeisland.engine.core.command.commands.CoreCommands;
 import de.cubeisland.engine.core.command.commands.ModuleCommands;
@@ -75,6 +69,8 @@ import de.cubeisland.engine.core.util.FreezeDetection;
 import de.cubeisland.engine.core.util.InventoryGuardFactory;
 import de.cubeisland.engine.core.util.Profiler;
 import de.cubeisland.engine.core.util.Version;
+import de.cubeisland.engine.core.util.WorldLocation;
+import de.cubeisland.engine.core.util.converter.BlockVector3Converter;
 import de.cubeisland.engine.core.util.converter.DurationConverter;
 import de.cubeisland.engine.core.util.converter.EnchantmentConverter;
 import de.cubeisland.engine.core.util.converter.ItemStackConverter;
@@ -85,7 +81,9 @@ import de.cubeisland.engine.core.util.converter.PlayerConverter;
 import de.cubeisland.engine.core.util.converter.UserConverter;
 import de.cubeisland.engine.core.util.converter.VersionConverter;
 import de.cubeisland.engine.core.util.converter.WorldConverter;
+import de.cubeisland.engine.core.util.converter.WorldLocationConverter;
 import de.cubeisland.engine.core.util.matcher.Match;
+import de.cubeisland.engine.core.util.math.BlockVector3;
 import de.cubeisland.engine.core.util.time.Duration;
 import de.cubeisland.engine.core.webapi.ApiConfig;
 import de.cubeisland.engine.core.webapi.ApiServer;
@@ -93,9 +91,6 @@ import de.cubeisland.engine.core.webapi.exception.ApiStartupException;
 import de.cubeisland.engine.core.world.TableWorld;
 import de.cubeisland.engine.logging.Log;
 import de.cubeisland.engine.logging.LogLevel;
-
-import static de.cubeisland.engine.core.util.ReflectionUtils.findFirstField;
-import static de.cubeisland.engine.core.util.ReflectionUtils.getFieldValue;
 
 /**
  * This represents the Bukkit-JavaPlugin that gets loaded and implements the Core
@@ -112,14 +107,13 @@ public final class BukkitCore extends JavaPlugin implements Core
     private I18n i18n;
     private BukkitCoreConfiguration config;
     private Log logger;
-    private EventManager eventRegistration;
+    private EventManager eventManager;
     private BukkitCommandManager commandManager;
     private BukkitTaskManager taskManager;
     private ApiServer apiServer;
     private BukkitWorldManager worldManager;
     private Match matcherManager;
     private InventoryGuardFactory inventoryGuard;
-    private PacketEventManager packetEventManager;
     private CorePerms corePerms;
     private BukkitBanManager banManager;
     private LogFactory logFactory;
@@ -129,7 +123,6 @@ public final class BukkitCore extends JavaPlugin implements Core
     private List<Runnable> initHooks;
     private PluginConfig pluginConfig;
     private FreezeDetection freezeDetection;
-    private boolean loadSucceeded;
     private boolean loaded = false;
     private boolean isStartupFinished = false;
     private RecipeManager recipeManager;
@@ -148,7 +141,6 @@ public final class BukkitCore extends JavaPlugin implements Core
     @Override
     public void onLoad()
     {
-        this.loadSucceeded = false;
         final Server server = this.getServer();
         final PluginManager pm = server.getPluginManager();
 
@@ -174,6 +166,8 @@ public final class BukkitCore extends JavaPlugin implements Core
         manager.registerConverter(Version.class, new VersionConverter());
         manager.registerConverter(OfflinePlayer.class, new PlayerConverter(this));
         manager.registerConverter(Location.class, new LocationConverter(this));
+        manager.registerConverter(WorldLocation.class, new WorldLocationConverter());
+        manager.registerConverter(BlockVector3.class, new BlockVector3Converter());
 
         try (InputStream is = this.getResource("plugin.yml"))
         {
@@ -227,8 +221,6 @@ public final class BukkitCore extends JavaPlugin implements Core
         {
             BukkitUtils.setSignalHandlers(this);
         }
-        // depends on: logger
-        this.packetEventManager = new PacketEventManager(this.logger);
 
         if (this.config.useWebapi)
         {
@@ -254,7 +246,7 @@ public final class BukkitCore extends JavaPlugin implements Core
         this.database.registerTable(TableWorld.class);
 
         // depends on: plugin manager
-        this.eventRegistration = new EventManager(this);
+        this.eventManager = new EventManager(this);
 
         // depends on: executor, database, Server, core config and event registration
         this.userManager = new BukkitUserManager(this);
@@ -268,29 +260,15 @@ public final class BukkitCore extends JavaPlugin implements Core
         // depends on: user manager, world manager
         ArgumentReader.init(this);
 
-        // depends on: server
-        CommandMap commandMap = getFieldValue(server, findFirstField(server, CommandMap.class), CommandMap.class);
-        CommandBackend commandBackend = null;
-        if (commandMap != null)
-        {
-            if (commandMap.getClass() == SimpleCommandMap.class)
+        // depends on: server, config
+        this.commandManager = new BukkitCommandManager(this, new CommandInjector(this));
+        this.addInitHook(new Runnable() {
+            @Override
+            public void run()
             {
-                commandBackend = new CubeCommandBackend(this);
+                pm.registerEvents(new PreCommandListener(BukkitCore.this), BukkitCore.this);
             }
-            else if (SimpleCommandMap.class.isAssignableFrom(commandMap.getClass()))
-            {
-                this.getLog().warn("The server you are using is not fully compatible, some advanced command features will be disabled.");
-                this.getLog().debug("The type of the command map: {}", commandMap.getClass().getName());
-                commandBackend = new SimpleCommandBackend(this, SimpleCommandMap.class.cast(commandMap));
-            }
-        }
-        if (commandBackend == null)
-        {
-            this.getLog().warn("We encountered a serious compatibility issue, however basic command features should still work. Please report this issue to the developers!");
-            commandBackend = new FallbackCommandBackend(this);
-        }
-        this.getLog().debug("Chosen command backend: {}", commandBackend.getClass().getName());
-        this.commandManager = new BukkitCommandManager(this, commandBackend);
+        });
         this.commandManager.registerCommandFactory(new ReflectedCommandFactory());
 
         // depends on: plugin manager, module manager
@@ -302,7 +280,7 @@ public final class BukkitCore extends JavaPlugin implements Core
         // depends on: server, module manager
         this.commandManager.registerCommand(new ModuleCommands(this.moduleManager));
         this.commandManager.registerCommand(new CoreCommands(this));
-        if (this.config.commands.improveVanilla)
+        if (this.config.improveVanilla)
         {
             this.commandManager.registerCommands(this.getModuleManager().getCoreModule(), new VanillaCommands(this));
             this.commandManager.registerCommand(new WhitelistCommand(this));
@@ -318,27 +296,22 @@ public final class BukkitCore extends JavaPlugin implements Core
         // depends on: file manager
         this.moduleManager.loadModules(this.fileManager.getModulesPath());
 
-        this.loadSucceeded = true;
         this.loaded = true;
     }
 
     @Override
     public void onEnable()
     {
-        if (!this.loadSucceeded)
-        {
-            this.getServer().getPluginManager().disablePlugin(this);
-            return;
-        }
         if (!this.loaded)
         {
             this.onLoad();
+            if (!this.loaded)
+            {
+                this.getServer().getPluginManager().disablePlugin(this);
+                return;
+            }
         }
-        if (!PacketHookInjector.register(this))
-        {
-            this.logger.warn("Failed to register the packet hook, some features might not work.");
-        }
-        Iterator< Runnable > it = this.initHooks.iterator();
+        Iterator<Runnable> it = this.initHooks.iterator();
         while (it.hasNext())
         {
             try
@@ -393,12 +366,6 @@ public final class BukkitCore extends JavaPlugin implements Core
         {
             this.freezeDetection.shutdown();
             this.freezeDetection = null;
-        }
-
-        if (this.packetEventManager != null)
-        {
-            this.packetEventManager.clean();
-            this.packetEventManager = null;
         }
 
         if (this.moduleManager != null)
@@ -619,7 +586,7 @@ public final class BukkitCore extends JavaPlugin implements Core
     @Override
     public EventManager getEventManager()
     {
-        return this.eventRegistration;
+        return this.eventManager;
     }
 
     @Override
@@ -662,11 +629,6 @@ public final class BukkitCore extends JavaPlugin implements Core
     public InventoryGuardFactory getInventoryGuard()
     {
         return this.inventoryGuard;
-    }
-
-    public PacketEventManager getPacketEventManager()
-    {
-        return this.packetEventManager;
     }
 
     @Override

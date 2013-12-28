@@ -64,6 +64,8 @@ import org.jooq.DSLContext;
 import org.jooq.Result;
 import org.jooq.types.UInteger;
 
+import static de.cubeisland.engine.core.util.LocationUtil.getChunkKey;
+import static de.cubeisland.engine.core.util.LocationUtil.getLocationKey;
 import static de.cubeisland.engine.locker.storage.AccessListModel.ACCESS_ALL;
 import static de.cubeisland.engine.locker.storage.AccessListModel.ACCESS_FULL;
 import static de.cubeisland.engine.locker.storage.ProtectedType.getProtectedType;
@@ -223,7 +225,6 @@ public class LockManager implements Listener
         {
             Location firstLoc = lock.getFirstLocation();
             this.locksById.remove(lock.getId());
-
             Chunk c1 = firstLoc.getChunk();
             for (Location location : lock.getLocations())
             {
@@ -720,26 +721,6 @@ public class LockManager implements Listener
     public void purgeLocksFrom(User user)
     {
         this.dsl.delete(TABLE_LOCK).where(TABLE_LOCK.OWNER_ID.eq(user.getEntity().getKey())).execute();
-    }
-
-    public static long getChunkKey(Location loc)
-    {
-        int chunkX = loc.getBlockX() >> 4;
-        int chunkZ = loc.getBlockZ() >> 4;
-        return getChunkKey(chunkX, chunkZ);
-    }
-
-    public static long getLocationKey(Location loc)
-    {
-        int x = loc.getBlockX() & 0x3FFFFFF;
-        int y = loc.getBlockY() & 0x1FF;
-        int z = loc.getBlockZ() & 0x3FFFFFF;
-        return ((((long)x << 26) | z) << 26) | y;
-    }
-
-    public static long getChunkKey(int chunkX, int chunkZ)
-    {
-        return ((long)chunkX << 32) | (long)chunkZ;
     }
 
 }
