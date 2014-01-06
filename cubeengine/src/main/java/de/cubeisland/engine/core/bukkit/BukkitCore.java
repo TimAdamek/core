@@ -84,13 +84,15 @@ import de.cubeisland.engine.core.util.converter.WorldConverter;
 import de.cubeisland.engine.core.util.converter.WorldLocationConverter;
 import de.cubeisland.engine.core.util.matcher.Match;
 import de.cubeisland.engine.core.util.math.BlockVector3;
-import de.cubeisland.engine.core.util.time.Duration;
 import de.cubeisland.engine.core.webapi.ApiConfig;
 import de.cubeisland.engine.core.webapi.ApiServer;
 import de.cubeisland.engine.core.webapi.exception.ApiStartupException;
+import de.cubeisland.engine.core.world.ConfigWorld;
+import de.cubeisland.engine.core.world.ConfigWorldConverter;
 import de.cubeisland.engine.core.world.TableWorld;
 import de.cubeisland.engine.logging.Log;
 import de.cubeisland.engine.logging.LogLevel;
+import org.joda.time.Duration;
 
 /**
  * This represents the Bukkit-JavaPlugin that gets loaded and implements the Core
@@ -235,9 +237,11 @@ public final class BukkitCore extends JavaPlugin implements Core
         }
 
         // depends on: core config, file manager, task manager
+        getLog().info("Connecting to the database...");
         this.database = MySQLDatabase.loadFromConfig(this, this.fileManager.getDataPath().resolve("database.yml"));
         if (this.database == null)
         {
+            getLog().error("Failed to connect tot the database, aborting...");
             return;
         }
 
@@ -292,6 +296,8 @@ public final class BukkitCore extends JavaPlugin implements Core
 
         // depends on loaded worlds
         this.worldManager = new BukkitWorldManager(BukkitCore.this);
+        // depends on worldManager
+        this.getConfigFactory().getDefaultConverterManager().registerConverter(ConfigWorld.class, new ConfigWorldConverter(worldManager));
 
         // depends on: file manager
         this.moduleManager.loadModules(this.fileManager.getModulesPath());

@@ -191,9 +191,9 @@ public abstract class BaseModuleManager implements ModuleManager
                 }
                 catch (ModuleAlreadyLoadedException ignored)
                 {}
-                catch (InvalidModuleException ex)
+                catch (InvalidModuleException e)
                 {
-                    this.logger.error(ex, "Failed to load the module from {}!", file);
+                    this.logger.error(e, "Failed to load the module from {}!", file);
                 }
             }
         }
@@ -414,7 +414,8 @@ public abstract class BaseModuleManager implements ModuleManager
         }
         else
         {
-            module.getLog().error("Module failed to load.");
+            module.getLog().error("Module failed to enable, unloading it now");
+            this.unloadModule(module);
         }
         return result;
     }
@@ -429,9 +430,12 @@ public abstract class BaseModuleManager implements ModuleManager
 
     public synchronized void disableModule(Module module)
     {
-        Profiler.startProfiling("disable-module");
-        try
+        boolean wasEnabled = module.isEnabled();
+        if (wasEnabled)
         {
+            Profiler.startProfiling("disable-module");
+        }
+
             module.disable();
             this.core.getUserManager().cleanup(module);
             this.core.getEventManager().removeListeners(module);
@@ -441,19 +445,22 @@ public abstract class BaseModuleManager implements ModuleManager
             this.core.getApiServer().unregisterApiHandlers(module);
             this.core.getRecipeManager().unregisterAllRecipes(module);
 
+        if (wasEnabled)
+        {
             this.core.getEventManager().fireEvent(new ModuleDisabledEvent(this.core, module));
-
-            Iterator<Entry<String, LinkedList<String>>> it = this.serviceProviders.entrySet().iterator();
-            while (it.hasNext())
-            {
-                if (it.next().getValue().remove(module.getId()))
-                {
-                    it.remove();
-                }
-            }
-            this.core.getModuleManager().getServiceManager().unregisterServices(module);
         }
-        finally
+
+        Iterator<Entry<String, LinkedList<String>>> it = this.serviceProviders.entrySet().iterator();
+        while (it.hasNext())
+        {
+            if (it.next().getValue().remove(module.getId()))
+            {
+                it.remove();
+            }
+        }
+        this.core.getModuleManager().getServiceManager().unregisterServices(module);
+
+        if (wasEnabled)
         {
             module.getLog().info("Module disabled within {} microseconds", Profiler.endProfiling("disable-module", TimeUnit.MICROSECONDS));
         }
@@ -462,9 +469,9 @@ public abstract class BaseModuleManager implements ModuleManager
     /**
      * Resolves the module that need to unload or reload when unloading given module
      *
-     * @param module
+     * @param module the module
      * @param willReload true if the module will be reloaded
-     * @param modules
+     * @param modules the collection of modules
      * @param out the list of modules that need to be unloaded
      */
     private void resolveModulesForUnload(Module module, boolean willReload, Collection<Module> modules, LinkedList<Pair<Module, Boolean>> out)
@@ -586,7 +593,7 @@ public abstract class BaseModuleManager implements ModuleManager
         this.modules.remove(module.getId());
         this.moduleInfoMap.remove(module.getId());
 
-        // TODO this.core.getLogFactory().shutdown(module.getLog());
+        this.core.getLogFactory().shutdown(module.getLog());
 
         // null all the fields referencing this module
         for (Module m : this.modules.values())
@@ -602,8 +609,7 @@ public abstract class BaseModuleManager implements ModuleManager
                         field.set(m, null);
                     }
                     catch (ReflectiveOperationException ignored)
-                    {
-                    }
+                    {}
                 }
             }
         }

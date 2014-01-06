@@ -20,25 +20,24 @@ package de.cubeisland.engine.portals;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerMoveEvent;
+import org.bukkit.event.player.PlayerTeleportEvent;
 
+import de.cubeisland.engine.core.user.User;
 import de.cubeisland.engine.core.util.LocationUtil;
 import de.cubeisland.engine.portals.config.PortalConfig;
 
 public class PortalManager implements Listener
 {
     private final Portals module;
-    private final File portalsDir;
+    protected final File portalsDir;
 
-    private Map<String, Portal> configs = new HashMap<>();
-
+    private Map<String, Portal> portals = new HashMap<>();
     private Map<Long, List<Portal>> chunksWithPortals = new HashMap<>();
 
     public PortalManager(Portals module)
@@ -46,6 +45,10 @@ public class PortalManager implements Listener
         this.module = module;
         this.portalsDir = this.module.getFolder().resolve("portals").toFile();
         this.portalsDir.mkdir();
+        this.module.getCore().getCommandManager().registerCommand(new PortalCommands(this.module, this));
+        this.module.getCore().getCommandManager().registerCommand(new PortalModifyCommand(this.module, this), "portals");
+        this.module.getCore().getEventManager().registerListener(this.module, this);
+        this.loadPortals();
     }
 
     private void loadPortals()
@@ -55,43 +58,33 @@ public class PortalManager implements Listener
             if (!file.isDirectory() && file.getName().endsWith(".yml"))
             {
                 PortalConfig load = this.module.getCore().getConfigFactory().load(PortalConfig.class, file);
-                Portal portal = new Portal(file.getName().substring(0, file.getName().lastIndexOf(".yml")), load);
-                this.configs.put(portal.getName(), portal);
-
-                int chunkXFrom = load.location.from.x >> 4;
-                int chunkZFrom =  load.location.from.z >> 4;
-                int chunkXTo =  load.location.to.x >> 4;
-                int chunkZTo = load.location.to.z >> 4;
-                if (chunkXFrom > chunkXTo) // if from is greater swap
-                {
-                    chunkXFrom = chunkXFrom + chunkXTo;
-                    chunkXTo = chunkXFrom - chunkXTo;
-                    chunkXFrom = chunkXFrom - chunkXTo;
-                }
-                if (chunkZFrom > chunkZTo) // if from is greater swap
-                {
-                    chunkZFrom = chunkZFrom + chunkZTo;
-                    chunkZTo = chunkZFrom - chunkZTo;
-                    chunkZFrom = chunkZFrom - chunkZTo;
-                }
-                for (int x = chunkXFrom; x <= chunkXTo; x++)
-                {
-                    for (int z = chunkZFrom; z <= chunkZTo; z++)
-                    {
-                        long chunkKey = LocationUtil.getChunkKey(x, z);
-                        List<Portal> list = this.chunksWithPortals.get(chunkKey);
-                        if (list == null)
-                        {
-                            list = new ArrayList<>();
-                            this.chunksWithPortals.put(chunkKey, list);
-                        }
-                        list.add(portal);
-                    }
-                }
+                Portal portal = new Portal(module, this, file.getName().substring(0, file.getName().lastIndexOf(".yml")), load);
+                this.addPortal(portal);
             }
         }
-        this.module.getLog().info("{} portals loaded!", this.configs.size());
-        this.module.getLog().debug("{} chunks checked", this.chunksWithPortals.size());
+        this.module.getLog().info("{} portals loaded!", this.portals.size());
+        this.module.getLog().debug("in {} chunks", this.chunksWithPortals.size());
+    }
+
+    @EventHandler
+    public void onTeleport(PlayerTeleportEvent event)
+    {
+        List<Portal> portals = this.chunksWithPortals.get(LocationUtil.getChunkKey(event.getFrom()));
+        if (portals == null)
+        {
+            return;
+        }
+        for (Portal portal : portals)
+        {
+            if (portal.has(event.getTo()))
+            {
+                User user = this.module.getCore().getUserManager().getExactUser(event.getPlayer().getName());
+                user.attachOrGet(PortalsAttachment.class, module).setInPortal(true);
+                user.sendMessage("TP INTO PORTAL"); // TODO remove
+                return;
+            }
+            // else ignore
+        }
     }
 
     @EventHandler
@@ -106,18 +99,67 @@ public class PortalManager implements Listener
          || event.getFrom().getBlockZ() != event.getTo().getBlockZ())
         {
             List<Portal> portals = this.chunksWithPortals.get(LocationUtil.getChunkKey(event.getFrom()));
+            User user = this.module.getCore().getUserManager().getExactUser(event.getPlayer().getName());
             if (portals != null)
             {
                 for (Portal portal : portals)
                 {
                     if (portal.has(event.getTo()))
                     {
-                        event.getPlayer().sendMessage("You stand in a portal: " + portal.getName());
+                        if (!user.attachOrGet(PortalsAttachment.class, module).isInPortal())
+                        {
+                            portal.teleport(user);
+                            return;
+                        }
+                        user.sendMessage("MOVE IN PORTAL"); // TODO remove
+                        return;
                     }
                     // else ignore
                 }
             }
+            user.attachOrGet(PortalsAttachment.class, module).setInPortal(false);
             // else movement is not in a chunk that has a portal
+        }
+    }
+
+    public Portal getPortal(String name)
+    {
+        return this.portals.get(name.toLowerCase());
+    }
+
+    protected void addPortal(Portal portal)
+    {
+        this.portals.put(portal.getName().toLowerCase(), portal);
+
+        int chunkXFrom = portal.config.location.from.x >> 4;
+        int chunkZFrom =  portal.config.location.from.z >> 4;
+        int chunkXTo =  portal.config.location.to.x >> 4;
+        int chunkZTo = portal.config.location.to.z >> 4;
+        if (chunkXFrom > chunkXTo) // if from is greater swap
+        {
+            chunkXFrom = chunkXFrom + chunkXTo;
+            chunkXTo = chunkXFrom - chunkXTo;
+            chunkXFrom = chunkXFrom - chunkXTo;
+        }
+        if (chunkZFrom > chunkZTo) // if from is greater swap
+        {
+            chunkZFrom = chunkZFrom + chunkZTo;
+            chunkZTo = chunkZFrom - chunkZTo;
+            chunkZFrom = chunkZFrom - chunkZTo;
+        }
+        for (int x = chunkXFrom; x <= chunkXTo; x++)
+        {
+            for (int z = chunkZFrom; z <= chunkZTo; z++)
+            {
+                long chunkKey = LocationUtil.getChunkKey(x, z);
+                List<Portal> list = this.chunksWithPortals.get(chunkKey);
+                if (list == null)
+                {
+                    list = new ArrayList<>();
+                    this.chunksWithPortals.put(chunkKey, list);
+                }
+                list.add(portal);
+            }
         }
     }
 }

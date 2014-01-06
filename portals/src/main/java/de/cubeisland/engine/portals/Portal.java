@@ -19,15 +19,21 @@ package de.cubeisland.engine.portals;
 
 import org.bukkit.Location;
 
+import de.cubeisland.engine.core.user.User;
+import de.cubeisland.engine.core.util.math.BlockVector3;
 import de.cubeisland.engine.portals.config.PortalConfig;
 
 public class Portal
 {
+    private Portals module;
+    private PortalManager manager;
     private String name;
-    private PortalConfig config;
+    protected final PortalConfig config;
 
-    public Portal(String name, PortalConfig config)
+    public Portal(Portals module, PortalManager manager, String name, PortalConfig config)
     {
+        this.module = module;
+        this.manager = manager;
         this.name = name;
         this.config = config;
     }
@@ -39,7 +45,7 @@ public class Portal
 
     public boolean has(Location location)
     {
-        return location.getWorld() == config.world &&
+        return location.getWorld().getName().equals(config.world) &&
             isBetween(config.location.from.x, config.location.to.x, location.getBlockX()) &&
             isBetween(config.location.from.y, config.location.to.y, location.getBlockY()) &&
             isBetween(config.location.from.z, config.location.to.z, location.getBlockZ());
@@ -47,6 +53,25 @@ public class Portal
 
     private static boolean isBetween(int a, int b, int x)
     {
-        return b > a ? x > a && x < b : x > b && x < a;
+        return b > a ? x >= a && x <= b : x >= b && x <= a;
+    }
+
+    public void teleport(User user)
+    {
+        if (this.config.destination == null)
+        {
+            user.sendTranslated("&eThis portal has no destination yet!");
+            user.attachOrGet(PortalsAttachment.class, module).setInPortal(true);
+        }
+        else
+        {
+            this.config.destination.teleport(user, this.manager);
+        }
+    }
+
+    public Location getPortalPos()
+    {
+        BlockVector3 midpoint = this.config.location.to.midpoint(this.config.location.from);
+        return new Location(this.config.getWorld(), midpoint.x + 0.5, midpoint.y, midpoint.z + 0.5);
     }
 }
