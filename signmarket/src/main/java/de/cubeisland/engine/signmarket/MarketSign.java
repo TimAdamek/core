@@ -31,6 +31,7 @@ import org.bukkit.event.block.Action;
 import org.bukkit.event.inventory.InventoryType;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.EnchantmentStorageMeta;
 import org.bukkit.inventory.meta.ItemMeta;
 
 import de.cubeisland.engine.core.CubeEngine;
@@ -350,26 +351,33 @@ public class MarketSign
                 }
                 if (sneaking)
                 {
-                    if (!this.isAdminSign() && (this.isOwner(user) || MarketSignPerm.SIGN_INVENTORY_ACCESS_OTHER.isAuthorized(user)))
+                    if (this.isValidSign(null))
                     {
-                        if (this.isTypeBuy() && this.itemInfo.matchesItem(itemInHand))
+                        if (!this.isAdminSign() && (this.isOwner(user) || MarketSignPerm.SIGN_INVENTORY_ACCESS_OTHER.isAuthorized(user)))
                         {
-                            if (!this.getInventory().getViewers().isEmpty())
+                            if (this.isTypeBuy() && this.itemInfo.matchesItem(itemInHand))
                             {
-                                user.sendTranslated("&cThis signs inventory is being edited right now!");
+                                if (!this.getInventory().getViewers().isEmpty())
+                                {
+                                    user.sendTranslated("&cThis signs inventory is being edited right now!");
+                                    return;
+                                }
+                                int amount = this.putItems(user, true);
+                                if (amount != 0)
+                                {
+                                    user.sendTranslated("&aAdded all (&6%d&a) &6%s&a to the stock!", amount, Match.material().getNameFor(this.itemInfo.getItemStack()));
+                                }
                                 return;
                             }
-                            int amount = this.putItems(user, true);
-                            if (amount != 0)
-                            {
-                                user.sendTranslated("&aAdded all (&6%d&a) &6%s&a to the stock!", amount, Match.material().getNameFor(this.itemInfo.getItemStack()));
-                            }
-                            return;
+                        }
+                        if (!this.openInventory(user))
+                        {
+                            user.sendTranslated("&cYou are not allowed to see the market-signs inventories");
                         }
                     }
-                    if (!this.openInventory(user))
+                    else
                     {
-                        user.sendTranslated("&cYou are not allowed to see the market-signs inventories");
+                        user.sendTranslated("&cInvalid sign!");
                     }
                     return;
                 }
@@ -540,11 +548,11 @@ public class MarketSign
         {
             if (this.isAdminSign())
             {
-                user.sendTranslated("&3Sell: &6%d &ffor &6%s &fto &6%s", this.getAmount(), this.parsePrice(), "Server");
+                user.sendTranslated("&3Sell: &6%d &ffor &6%s&f to &6%s", this.getAmount(), this.parsePrice(), "Server");
             }
             else
             {
-                user.sendTranslated("&3Sell: &6%d &ffor &6%s &fto &2%s", this.getAmount(), this.parsePrice(), this.getOwner().getName());
+                user.sendTranslated("&3Sell: &6%d &ffor &6%s&f to &2%s", this.getAmount(), this.parsePrice(), this.getOwner().getName());
             }
         }
         if (this.getItem() == null)
@@ -590,6 +598,17 @@ public class MarketSign
             for (Map.Entry<Enchantment, Integer> entry : meta.getEnchants().entrySet())
             {
                 user.sendMessage(" &e-&6 " + Match.enchant().nameFor(entry.getKey()) + " &e" + RomanNumbers.intToRoman(entry.getValue()));
+            }
+            if (meta instanceof EnchantmentStorageMeta)
+            {
+                if (!((EnchantmentStorageMeta)meta).getStoredEnchants().isEmpty())
+                {
+                    user.sendTranslated("&6Book-Enchantments:");
+                    for (Map.Entry<Enchantment, Integer> entry : ((EnchantmentStorageMeta)meta).getStoredEnchants().entrySet())
+                    {
+                        user.sendMessage(" &e-&6 " + Match.enchant().nameFor(entry.getKey()) + " &e" + RomanNumbers.intToRoman(entry.getValue()));
+                    }
+                }
             }
         }
         if (this.hasStock())

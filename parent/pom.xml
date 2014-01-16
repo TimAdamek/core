@@ -31,7 +31,7 @@
     </repository>
     <snapshotRepository>
       <id>cubeisland-repo</id>
-      <name>Release</name>
+      <name>Snapshot</name>
       <url>http://nexus.cubeisland.de/content/repositories/snapshots</url>
     </snapshotRepository>
   </distributionManagement>
@@ -104,19 +104,6 @@
             <groupId>org.ocpsoft.prettytime</groupId>
             <artifactId>prettytime</artifactId>
           </exclusion>
-          <!-- JANSI -->
-          <exclusion>
-            <groupId>org.fusesource.jansi</groupId>
-            <artifactId>jansi-native</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>org.fusesource.jansi</groupId>
-            <artifactId>jansi-project</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>org.fusesource.jansi</groupId>
-            <artifactId>jansi-website</artifactId>
-          </exclusion>
           <exclusion>
             <groupId>org.mcstats.bukkit</groupId>
             <artifactId>metrics</artifactId>
@@ -179,14 +166,14 @@
       <dependency>
         <groupId>org.powermock</groupId>
         <artifactId>powermock-api-mockito</artifactId>
-        <version>1.5.2</version>
+        <version>1.5.3</version>
         <type>jar</type>
         <scope>test</scope>
       </dependency>
       <dependency>
         <groupId>org.powermock</groupId>
         <artifactId>powermock-module-junit4</artifactId>
-        <version>1.5.2</version>
+        <version>1.5.3</version>
         <type>jar</type>
         <scope>test</scope>
       </dependency>
@@ -324,7 +311,7 @@
         <plugin>
           <groupId>de.cubeisland.maven.plugins</groupId>
           <artifactId>githead-maven-plugin</artifactId>
-          <version>1.0.1</version>
+          <version>1.0.2-SNAPSHOT</version>
           <executions>
             <execution>
               <goals>
@@ -477,25 +464,6 @@
           </plugin>
 
           <plugin>
-            <groupId>org.codehaus.mojo</groupId>
-            <artifactId>versions-maven-plugin</artifactId>
-            <version>2.1</version>
-            <configuration>
-              <generateBackupPoms>false</generateBackupPoms>
-              <processPlugins>true</processPlugins>
-            </configuration>
-            <executions>
-              <execution>
-                <phase>initialize</phase>
-                <goals>
-                  <goal>display-plugin-updates</goal>
-                  <goal>display-dependency-updates</goal>
-                </goals>
-              </execution>
-            </executions>
-          </plugin>
-
-          <plugin>
             <groupId>org.apache.maven.plugins</groupId>
             <artifactId>maven-javadoc-plugin</artifactId>
             <executions>
@@ -516,35 +484,6 @@
                 <phase>package</phase>
                 <goals>
                   <goal>jar</goal>
-                </goals>
-              </execution>
-            </executions>
-          </plugin>
-
-          <!--
-              Enforce that at least JDK 1.7 and Maven 3.0 are used to compile the project
-          -->
-          <plugin>
-            <groupId>org.apache.maven.plugins</groupId>
-            <artifactId>maven-enforcer-plugin</artifactId>
-            <version>1.3.1</version>
-            <configuration>
-              <detail>true</detail>
-              <fail>true</fail>
-              <failFast>true</failFast>
-              <rules>
-                <requireJavaVersion>
-                  <version>[1.7.0,)</version>
-                </requireJavaVersion>
-                <requireMavenVersion>
-                  <version>[3.0,)</version>
-                </requireMavenVersion>
-              </rules>
-            </configuration>
-            <executions>
-              <execution>
-                <goals>
-                  <goal>enforce</goal>
                 </goals>
               </execution>
             </executions>

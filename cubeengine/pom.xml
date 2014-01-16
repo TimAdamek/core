@@ -42,11 +42,6 @@
       <version>0.0.2-SNAPSHOT</version>
     </dependency>
     <dependency>
-      <groupId>com.ibm.icu</groupId>
-      <artifactId>icu4j</artifactId>
-      <version>52.1</version>
-    </dependency>
-    <dependency>
       <groupId>mysql</groupId>
       <artifactId>mysql-connector-java</artifactId>
       <version>5.1.28</version>
@@ -73,13 +68,6 @@
       <version>2.3</version>
     </dependency>
     <dependency>
-      <groupId>org.fusesource.jansi</groupId>
-      <artifactId>jansi</artifactId>
-      <version>1.11</version>
-      <type>jar</type>
-      <scope>compile</scope>
-    </dependency>
-    <dependency>
       <groupId>com.fasterxml.jackson.core</groupId>
       <artifactId>jackson-databind</artifactId>
     </dependency>
@@ -104,6 +92,24 @@
       <version>${bukkitVersion}</version>
       <type>jar</type>
       <scope>compile</scope>
+      <exclusions>
+        <exclusion>
+          <groupId>org.fusesource.jansi</groupId>
+          <artifactId>jansi</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.fusesource.jansi</groupId>
+          <artifactId>jansi-native</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.fusesource.jansi</groupId>
+          <artifactId>jansi-project</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.fusesource.jansi</groupId>
+          <artifactId>jansi-website</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
     <dependency>
       <groupId>org.bukkit</groupId>
@@ -111,25 +117,6 @@
       <version>${minecraftVersion}</version>
       <type>jar</type>
       <scope>compile</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.slf4j</groupId>
-      <artifactId>slf4j-api</artifactId>
-      <version>1.7.5</version>
-    </dependency>
-
-    <!-- Test dependencies -->
-    <dependency>
-      <groupId>junit</groupId>
-      <artifactId>junit</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>org.powermock</groupId>
-      <artifactId>powermock-api-mockito</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>org.powermock</groupId>
-      <artifactId>powermock-module-junit4</artifactId>
     </dependency>
     <dependency>
       <groupId>org.jooq</groupId>
@@ -145,6 +132,20 @@
       <groupId>org.spout</groupId>
       <artifactId>simplenbt</artifactId>
       <version>1.0.5-SNAPSHOT</version>
+    </dependency>
+
+    <!-- Test dependencies -->
+    <dependency>
+      <groupId>junit</groupId>
+      <artifactId>junit</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.powermock</groupId>
+      <artifactId>powermock-api-mockito</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.powermock</groupId>
+      <artifactId>powermock-module-junit4</artifactId>
     </dependency>
   </dependencies>
 

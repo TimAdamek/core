@@ -15,9 +15,15 @@
  * You should have received a copy of the GNU General Public License
  * along with CubeEngine.  If not, see <http://www.gnu.org/licenses/>.
  */
-package de.cubeisland.engine.portals;
+package de.cubeisland.engine.core.bukkit;
 
-import de.cubeisland.engine.configuration.YamlConfiguration;
+import de.cubeisland.engine.core.Core;
+import de.cubeisland.engine.core.module.ModuleLoader;
 
-public class PortalsConfig extends YamlConfiguration
-{}
+public class BukkitModuleLoader extends ModuleLoader
+{
+    public BukkitModuleLoader(Core core, ClassLoader parentClassLoader)
+    {
+        super(core, parentClassLoader);
+    }
+}
