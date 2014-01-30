@@ -36,16 +36,15 @@ import de.cubeisland.engine.core.util.ChatFormat;
 import de.cubeisland.engine.core.util.StringUtils;
 import de.cubeisland.engine.core.util.matcher.Match;
 
-import static de.cubeisland.engine.backpack.BackpackPermissions.OPEN_OTHER_USER;
-import static de.cubeisland.engine.backpack.BackpackPermissions.OPEN_OTHER_WORLDS;
-
 public class BackpackCommands extends ContainerCommand
 {
+    private Backpack module;
     private BackpackManager manager;
 
     public BackpackCommands(Backpack module, BackpackManager manager)
     {
         super(module, "backpack", "The Backpack commands", Arrays.asList("bp"));
+        this.module = module;
         this.manager = manager;
     }
 
@@ -78,12 +77,12 @@ public class BackpackCommands extends ContainerCommand
                     return;
                 }
             }
-            if (context.getSender() != forUser && !OPEN_OTHER_USER.isAuthorized(context.getSender()))
+            if (context.getSender() != forUser && !module.perms().OPEN_OTHER_USER.isAuthorized(context.getSender()))
             {
                 context.sendTranslated("&cYou are not allowed to open the backpacks of other users!");
                 return;
             }
-            if (forUser.getWorld() != forWorld && ! OPEN_OTHER_WORLDS.isAuthorized(context.getSender()))
+            if (forUser.getWorld() != forWorld && ! module.perms().OPEN_OTHER_WORLDS.isAuthorized(context.getSender()))
             {
                 context.sendTranslated("&cYou are not allowed to open backpacks from an other world!");
                 return;
@@ -111,12 +110,7 @@ public class BackpackCommands extends ContainerCommand
     {
         User forUser = null;
         World forWorld = null;
-        if (context.getSender() instanceof User)
-        {
-            forUser = (User)context.getSender();
-            forWorld = ((User)context.getSender()).getWorld();
-        }
-        else if (context.hasParam("w"))
+        if (context.hasParam("w"))
         {
             forWorld = context.getParam("w", null);
             if (forWorld == null)
@@ -124,6 +118,11 @@ public class BackpackCommands extends ContainerCommand
                 context.sendTranslated("&cUnknown World &6%s&c!", context.getString("w"));
                 return;
             }
+        }
+        else if (context.getSender() instanceof User)
+        {
+            forUser = (User)context.getSender();
+            forWorld = ((User)context.getSender()).getWorld();
         }
         else if (!context.hasFlag("g"))
         {

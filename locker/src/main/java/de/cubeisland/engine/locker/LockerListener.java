@@ -96,7 +96,7 @@ public class LockerListener implements Listener
         Lock lock = this.manager.getLockAtLocation(location, user);
         if (event.getClickedBlock() != null && event.getClickedBlock().getState() instanceof InventoryHolder)
         {
-            if (LockerPerm.DENY_CONTAINER.isAuthorized(user))
+            if (module.perms().DENY_CONTAINER.isAuthorized(user))
             {
                 user.sendTranslated("&cStrong magic prevents you from accessing any inventory!");
                 event.setCancelled(true);
@@ -107,7 +107,7 @@ public class LockerListener implements Listener
         }
         else if (event.getClickedBlock().getState().getData() instanceof Openable)
         {
-            if (LockerPerm.DENY_DOOR.isAuthorized(user))
+            if (module.perms().DENY_DOOR.isAuthorized(user))
             {
                 user.sendTranslated("&cStrong magic prevents you from accessing any door!");
                 event.setCancelled(true);
@@ -115,6 +115,10 @@ public class LockerListener implements Listener
             }
             if (lock == null) return;
             lock.handleBlockDoorUse(event, user, location);
+        }
+        else if (lock != null)// other interact e.g. repeater
+        {
+            lock.handleBlockInteract(event, user);
         }
         if (event.isCancelled()) event.setUseInteractedBlock(Result.DENY);
     }
@@ -125,7 +129,7 @@ public class LockerListener implements Listener
         if (!this.module.getConfig().protectEntityFromRClick) return;
         Entity entity = event.getRightClicked();
         User user = this.module.getCore().getUserManager().getExactUser(event.getPlayer().getName());
-        if (LockerPerm.DENY_ENTITY.isAuthorized(user))
+        if (module.perms().DENY_ENTITY.isAuthorized(user))
         {
             user.sendTranslated("&cStrong magic prevents you from reaching this Entity!");
             event.setCancelled(true);
@@ -271,7 +275,7 @@ public class LockerListener implements Listener
                             user.sendTranslated("&eNearby BlockProtection is not valid!");
                             lock.delete(user);
                         }
-                        else if (lock.isOwner(user) || lock.hasAdmin(user) || LockerPerm.EXPAND_OTHER.isAuthorized(user))
+                        else if (lock.isOwner(user) || lock.hasAdmin(user) || module.perms().EXPAND_OTHER.isAuthorized(user))
                         {
                             this.manager.extendLock(lock, event.getBlockPlaced().getLocation());
                             user.sendTranslated("&aProtection expanded!");
@@ -315,7 +319,7 @@ public class LockerListener implements Listener
                             {
                                 if (topDoor.getData() != topRelative.getData()) // This is a doubleDoor!
                                 {
-                                    if (lock.isOwner(user) || lock.hasAdmin(user) || LockerPerm.EXPAND_OTHER.isAuthorized(user))
+                                    if (lock.isOwner(user) || lock.hasAdmin(user) || module.perms().EXPAND_OTHER.isAuthorized(user))
                                     {
                                         this.manager.extendLock(lock, loc); // bot half
                                         this.manager.extendLock(lock, loc.clone().add(0, 1, 0)); // top half
@@ -542,7 +546,7 @@ public class LockerListener implements Listener
             {
                 Lock lock = this.manager.getLockForEntityUID(event.getEntity().getUniqueId());
                 User user = this.module.getCore().getUserManager().getExactUser(((Player)((HangingBreakByEntityEvent)event).getRemover()).getName());
-                if (LockerPerm.DENY_HANGING.isAuthorized(user))
+                if (module.perms().DENY_HANGING.isAuthorized(user))
                 {
                     event.setCancelled(true);
                     return;

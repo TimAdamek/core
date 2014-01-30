@@ -20,6 +20,7 @@ package de.cubeisland.engine.core.logging;
 import de.cubeisland.engine.core.Core;
 import de.cubeisland.engine.logging.DefaultLogFactory;
 import de.cubeisland.engine.logging.Log;
+import de.cubeisland.engine.logging.LogLevel;
 import de.cubeisland.engine.logging.LogTarget;
 import de.cubeisland.engine.logging.filter.ExceptionFilter;
 import de.cubeisland.engine.logging.filter.PrefixFilter;
@@ -35,6 +36,7 @@ public class LogFactory extends DefaultLogFactory
 
     protected Log coreLog;
     private Log parent;
+    private Log databaseLog;
 
     public LogFactory(Core core, java.util.logging.Logger julLogger)
     {
@@ -89,4 +91,67 @@ public class LogFactory extends DefaultLogFactory
     {
         return this.parent;
     }
+
+    public Log getDatabaseLog()
+    {
+        if (this.databaseLog == null)
+        {
+            this.databaseLog = this.getLog(Core.class, "Database");
+            AsyncFileTarget target = new AsyncFileTarget(LoggingUtil.getLogFile(core, "Database"),
+                                                         LoggingUtil.getFileFormat(true, false),
+                                                         true, LoggingUtil.getCycler(), core.getTaskManager().getThreadFactory());
+            target.setLevel(this.core.getConfiguration().logging.logDatabaseQueries ? LogLevel.ALL : LogLevel.NONE);
+            databaseLog.addTarget(target);
+        }
+        return this.databaseLog;
+    }
+
+    // TODO log-cycling on shutdown ?
+    // old code:
+    /*
+    private static final SimpleDateFormat LOG_DIR_DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd--HHmm");
+    public void cycleLogs()
+    {
+        if (this.core.getConfiguration().logging.archiveLogs)
+        {
+            String dateString = LOG_DIR_DATE_FORMAT.format(new Date(core.getLogFactory().getBirthTime()));
+            final Path base = Paths.get(System.getProperty("cubeengine.logging.default-path"));
+            final Path folderPath = base.resolve(dateString);
+            final Path zipPath = base.resolve(dateString + ".zip");
+
+            try (ZipOutputStream zip = new ZipOutputStream(Files.newOutputStream(zipPath)))
+            {
+                if (!Files.exists(folderPath) || !Files.isDirectory(folderPath))
+                {
+                    this.core.getLogger().info("The old log directory was not found or is not a directory: " + folderPath);
+                    return;
+                }
+                try (DirectoryStream<Path> directory = Files.newDirectoryStream(folderPath, LOG))
+                {
+                    for (Path file : directory)
+                    {
+                        ZipEntry zipEntry = new ZipEntry(file.getFileName().toString());
+                        zip.putNextEntry(zipEntry);
+
+                        try (FileChannel inputChannel = FileChannel.open(file))
+                        {
+                            ByteBuffer buffer = ByteBuffer.allocate(4096);
+                            while (inputChannel.read(buffer) != -1)
+                            {
+                                zip.write(buffer.array(), 0, buffer.position());
+                                buffer.flip();
+                            }
+                            zip.closeEntry();
+                        }
+                    }
+                }
+                zip.finish();
+                FileUtil.deleteRecursive(folderPath);
+            }
+            catch (IOException ex)
+            {
+                core.getLogger().log(WARNING, "An error occurred while compressing the logs: " + ex
+                    .getLocalizedMessage(), ex);
+            }
+        }*/
 }

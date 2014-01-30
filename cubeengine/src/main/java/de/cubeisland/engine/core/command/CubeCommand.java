@@ -152,7 +152,7 @@ public abstract class CubeCommand extends Command
 
     protected Permission generatePermissionNode()
     {
-        Permission commandBase = this.getModule().getBasePermission().createAbstractChild("command");
+        Permission commandBase = this.getModule().getBasePermission().childWildcard("command");
         LinkedList<String> cmds = new LinkedList<>();
         CubeCommand cmd = this;
         do
@@ -160,21 +160,21 @@ public abstract class CubeCommand extends Command
             cmds.addFirst(cmd.getName());
         }
         while ((cmd = cmd.getParent()) != null);
-        Permission result = commandBase;
+        Permission perm = commandBase;
         Iterator<String> it = cmds.iterator();
         while (it.hasNext())
         {
             String permString = it.next();
             if (it.hasNext())
             {
-                result = result.createAbstractChild(permString);
+                perm = perm.childWildcard(permString);
             }
             else
             {
-                result = result.createChild(permString, this.getGeneratedPermissionDefault());
+                perm = perm.child(permString, this.getGeneratedPermissionDefault());
             }
         }
-        return result;
+        return perm;
     }
 
     public void updateGeneratedPermission()

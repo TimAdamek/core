@@ -333,7 +333,7 @@ public final class BukkitCore extends JavaPlugin implements Core
 
         if (this.config.preventSpamKick)
         {
-            this.getServer().getPluginManager().registerEvents(new PreventSpamKickListener(), this);
+            this.getServer().getPluginManager().registerEvents(new PreventSpamKickListener(this), this);
         }
 
         this.getServer().getPluginManager().registerEvents(new CoreListener(this), this);
@@ -444,10 +444,6 @@ public final class BukkitCore extends JavaPlugin implements Core
             this.logFactory.shutdown();
         }
 
-        if (this.fileManager != null)
-        {
-            this.fileManager.cycleLogs();
-        }
         this.fileManager = null;
     }
 
@@ -660,5 +656,9 @@ public final class BukkitCore extends JavaPlugin implements Core
          return recipeManager;
     }
 
+    public CorePerms perms()
+    {
+        return corePerms;
+    }
     //endregion
 }

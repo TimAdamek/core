@@ -45,9 +45,6 @@ import de.cubeisland.engine.worlds.config.UniverseConfig;
 import de.cubeisland.engine.worlds.config.WorldConfig;
 import de.cubeisland.engine.worlds.player.PlayerDataConfig;
 
-import static de.cubeisland.engine.worlds.WorldsPermissions.KEEP_FLYMODE;
-import static de.cubeisland.engine.worlds.WorldsPermissions.KEEP_GAMEMODE;
-
 /**
  * Represents multiple worlds in a universe
  */
@@ -187,15 +184,16 @@ public class Universe
     {
         if (!this.universeConfig.freeAccess)
         {
-            this.universeAccessPerm = this.multiverse.getUniverseRootPerm().createAbstractChild("access").createChild(dirUniverse.getName());
+            this.universeAccessPerm = this.multiverse.getUniverseRootPerm().childWildcard("access").child(dirUniverse
+                                                                                                              .getName());
             this.module.getCore().getPermissionManager().registerPermission(module, this.universeAccessPerm);
         }
-        Permission worldAccess = this.multiverse.getUniverseRootPerm().createAbstractChild("world-access");
+        Permission worldAccess = this.multiverse.getUniverseRootPerm().childWildcard("world-access");
         for (Entry<World, WorldConfig> entry : this.worldConfigs.entrySet())
         {
             if (!entry.getValue().access.free)
             {
-                Permission perm = worldAccess.createChild(entry.getKey().getName());
+                Permission perm = worldAccess.child(entry.getKey().getName());
                 this.module.getCore().getPermissionManager().registerPermission(module, perm);
                 this.worldPerms.put(entry.getKey(), perm);
             }
@@ -322,11 +320,11 @@ public class Universe
             save.applyToPlayer(player);
             this.savePlayer(player, player.getWorld());
         }
-        if (!(this.universeConfig.keepFlyMode || KEEP_FLYMODE.isAuthorized(player)))
+        if (!(this.universeConfig.keepFlyMode || module.perms().KEEP_FLYMODE.isAuthorized(player)))
         {
             player.setFlying(player.isFlying());
         }
-        if (!(this.universeConfig.keepGameMode || KEEP_GAMEMODE.isAuthorized(player)))
+        if (!(this.universeConfig.keepGameMode || module.perms().KEEP_GAMEMODE.isAuthorized(player)))
         {
             player.setGameMode(this.worldConfigs.get(player.getWorld()).gameMode);
         }

@@ -61,14 +61,15 @@ public class BackpackAttachment extends UserAttachment
             }
             this.loadBackpacks(dir, map);
         }
-        dir = new File(module.groupedDir, world.getName());
+        World mainWorld = ((Backpack)this.getModule()).getMainWorld(world);
+        dir = new File(module.groupedDir, mainWorld.getName());
         if (dir.exists())
         {
-            Map<String, BackpackInventories> map = this.groupedBackpacks.get(world);
+            Map<String, BackpackInventories> map = this.groupedBackpacks.get(mainWorld);
             if (map == null)
             {
                 map = new HashMap<>();
-                this.groupedBackpacks.put(world, map);
+                this.groupedBackpacks.put(mainWorld, map);
             }
             this.loadBackpacks(dir, map);
         }
@@ -134,6 +135,7 @@ public class BackpackAttachment extends UserAttachment
         {
             return backpack;
         }
+        if (world == null) return null;
         Map<String, BackpackInventories> map = this.backpacks.get(world);
         if (map != null)
         {
@@ -143,7 +145,8 @@ public class BackpackAttachment extends UserAttachment
         {
             return backpack;
         }
-        map = this.groupedBackpacks.get(((Backpack)this.getModule()).getMainWorld(world));
+        World mainWorld = ((Backpack)this.getModule()).getMainWorld(world);
+        map = this.groupedBackpacks.get(mainWorld);
         if (map != null)
         {
             backpack = map.get(name);

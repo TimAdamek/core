@@ -23,9 +23,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 import de.cubeisland.engine.configuration.Configuration;
-import de.cubeisland.engine.configuration.exception.InvalidConfigurationException;
 import de.cubeisland.engine.core.Core;
-import de.cubeisland.engine.core.CubeEngine;
 import de.cubeisland.engine.core.logging.LogFactory;
 import de.cubeisland.engine.core.logging.LoggingUtil;
 import de.cubeisland.engine.core.permission.Permission;
@@ -300,7 +298,7 @@ public abstract class Module
                 this.onDisable();
                 if (this.modulePermission != null)
                 {
-                    Permission.BASE.removeChild(this.modulePermission);
+                    Permission.BASE.detach(this.modulePermission);
                     this.modulePermission = null;
                 }
             }
@@ -327,7 +325,7 @@ public abstract class Module
     {
         if (modulePermission == null)
         {
-            modulePermission = Permission.BASE.createAbstractChild(this.getId());
+            modulePermission = Permission.BASE.childWildcard(this.getId());
         }
         return modulePermission;
     }

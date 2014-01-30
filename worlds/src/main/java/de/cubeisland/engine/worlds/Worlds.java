@@ -28,8 +28,6 @@ import org.bukkit.potion.PotionEffect;
 import de.cubeisland.engine.configuration.codec.ConverterManager;
 import de.cubeisland.engine.core.config.codec.NBTCodec;
 import de.cubeisland.engine.core.module.Module;
-import de.cubeisland.engine.core.util.WorldLocation;
-import de.cubeisland.engine.core.util.converter.WorldLocationConverter;
 import de.cubeisland.engine.worlds.commands.WorldCommands;
 import de.cubeisland.engine.worlds.config.WorldsConfig;
 import de.cubeisland.engine.worlds.converter.DiffcultyConverter;
@@ -41,6 +39,8 @@ import de.cubeisland.engine.worlds.converter.WorldTypeConverter;
 
 public class Worlds extends Module
 {
+    private WorldsPermissions perms;
+
     public Multiverse getMultiverse()
     {
         return multiverse;
@@ -64,7 +64,7 @@ public class Worlds extends Module
         manager.registerConverter(Environment.class, new EnvironmentConverter());
         manager.registerConverter(GameMode.class, new GameModeConverter());
         manager.registerConverter(WorldType.class, new WorldTypeConverter());
-///*TODO remove
+///*TODO remove saving into yml too
         manager.registerConverter(Inventory.class, new InventoryConverter(Bukkit.getServer()));
         manager.registerConverter(PotionEffect.class, new PotionEffectConverter());
 //*/
@@ -80,9 +80,11 @@ public class Worlds extends Module
         this.config = this.loadConfig(WorldsConfig.class);
         multiverse = new Multiverse(this);
         this.getCore().getCommandManager().registerCommand(new WorldCommands(this, multiverse));
-        new WorldsPermissions(this);
-
-
+        perms = new WorldsPermissions(this);
     }
 
+    public WorldsPermissions perms()
+    {
+        return perms;
+    }
 }
