@@ -15,36 +15,32 @@
  * You should have received a copy of the GNU General Public License
  * along with CubeEngine.  If not, see <http://www.gnu.org/licenses/>.
  */
-package de.cubeisland.engine.core.ban;
+package de.cubeisland.engine.core.module.exception;
 
-import java.util.Date;
-
-import static de.cubeisland.engine.core.contract.Contract.expectNotNull;
-
-public class UserBan extends Ban
+public class ModuleLoadError extends Error
 {
-    private final String target;
-
-    public UserBan(String target, String source, String reason)
+    public ModuleLoadError()
     {
-        this(target, source, reason, new Date(System.currentTimeMillis()), null);
+        super();
     }
 
-    public UserBan(String target, String source, String reason, Date expires)
+    public ModuleLoadError(String message)
     {
-        this(target, source, reason, new Date(System.currentTimeMillis()), expires);
+        super(message);
     }
 
-    public UserBan(String target, String source, String reason, Date created, Date expires)
+    public ModuleLoadError(String message, Throwable cause)
     {
-        super(source, reason, created, expires);
-        expectNotNull(target, "The user must not be null!");
-        this.target = target;
+        super(message, cause);
     }
 
-    @Override
-    public String getTarget()
+    public ModuleLoadError(Throwable cause)
     {
-        return this.target;
+        super(cause);
+    }
+
+    public ModuleLoadError(String message, Throwable cause, boolean enableSuppression, boolean writableStackTrace)
+    {
+        super(message, cause, enableSuppression, writableStackTrace);
     }
 }
