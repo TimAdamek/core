@@ -17,6 +17,9 @@
  */
 package de.cubeisland.engine.worlds.config;
 
+import org.bukkit.GameMode;
+
+import de.cubeisland.engine.configuration.Section;
 import de.cubeisland.engine.configuration.YamlConfiguration;
 import de.cubeisland.engine.configuration.annotations.Comment;
 import de.cubeisland.engine.core.world.ConfigWorld;
@@ -26,11 +29,28 @@ public class UniverseConfig extends YamlConfiguration
     @Comment("The main world in this universe")
     public ConfigWorld mainWorld;
 
-    @Comment("Players will keep their gamemode when changing worlds in this universe")
+    @Comment({"Players will keep their gamemode when changing worlds in this universe",
+             "You should not set this to true when players cannot change their gamemode in this universe"})
     public boolean keepGameMode = false; // if false can use perm
+
+    @Comment({"The gamemode to enforce in every world of this universe",
+              "Players with the keep gamemode permission ignore this",
+              "leave empty to configure the gamemode for each world individualle"})
+    public GameMode enforceGameMode = null;
+
     @Comment("Players will keep their flymode when changing worlds in this universe")
     public boolean keepFlyMode = false; // if false can use perm
 
     @Comment("If true players do not need permissions to enter this universe")
     public boolean freeAccess = true; // if false generate permission
+
+    public EntityTp entityTp;
+
+    public class EntityTp implements Section
+    {
+        @Comment("If 2 universes have this option set to true entities can travel from one universe to the other")
+        public boolean enable = false;
+        @Comment("If 2 universes have this option set to true entities with inventories can travel from one universe to the other too")
+        public boolean inventory = false;
+    }
 }

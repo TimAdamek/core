@@ -15,22 +15,20 @@
  * You should have received a copy of the GNU General Public License
  * along with CubeEngine.  If not, see <http://www.gnu.org/licenses/>.
  */
-package de.cubeisland.engine.worlds;
+package de.cubeisland.engine.core.command.readers;
 
-import de.cubeisland.engine.core.permission.Permission;
-import de.cubeisland.engine.core.permission.PermissionContainer;
+import java.util.Locale;
 
-public class WorldsPermissions extends PermissionContainer<Worlds>
+import org.bukkit.World.Environment;
+
+import de.cubeisland.engine.core.command.ArgumentReader;
+import de.cubeisland.engine.core.command.exception.InvalidArgumentException;
+
+public class EnvironmentReader extends ArgumentReader
 {
-
-
-    public WorldsPermissions(Worlds module)
+    @Override
+    public Environment read(String arg, Locale locale) throws InvalidArgumentException
     {
-        super(module);
-        this.registerAllPermissions();
+        return Environment.valueOf(arg.toUpperCase());
     }
-
-    public final Permission KEEP_GAMEMODE = getBasePerm().child("keep-gamemode");
-    public final Permission KEEP_FLYMODE = getBasePerm().child("keep-flymode");
-    public final Permission REMOVE_WORLDFOLDER = getBasePerm().child("remove-worldfolder");
 }

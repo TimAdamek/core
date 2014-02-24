@@ -38,6 +38,7 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityPortalEvent;
+import org.bukkit.event.player.PlayerBedLeaveEvent;
 import org.bukkit.event.player.PlayerChangedWorldEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerPortalEvent;
@@ -51,6 +52,7 @@ import de.cubeisland.engine.core.permission.Permission;
 import de.cubeisland.engine.core.user.User;
 import de.cubeisland.engine.core.util.WorldLocation;
 import de.cubeisland.engine.core.world.ConfigWorld;
+import de.cubeisland.engine.core.world.WorldManager;
 import de.cubeisland.engine.core.world.WorldSetSpawnEvent;
 import de.cubeisland.engine.worlds.config.WorldConfig;
 import de.cubeisland.engine.worlds.config.WorldsConfig;
@@ -65,10 +67,11 @@ import static de.cubeisland.engine.core.filesystem.FileExtensionFilter.YAML;
 public class Multiverse implements Listener
 {
     private final Worlds module;
+    private final WorldManager wm;
     private WorldsConfig config;
 
-    private final Map<String, Universe> universes = new HashMap<>();
-    private final Map<World, Universe> worlds = new HashMap<>();
+    private final Map<String, Universe> universes = new HashMap<>(); // universeName -> Universe
+    private final Map<String, Universe> worlds = new HashMap<>(); // worldName -> belonging to Universe
 
     private final Path dirPlayers;
     private final Path dirUniverses;
@@ -76,11 +79,10 @@ public class Multiverse implements Listener
 
     private final Permission universeRootPerm;
 
-    private World mainWorld;
-
     public Multiverse(Worlds module, WorldsConfig config) throws IOException
     {
         this.module = module;
+        this.wm = module.getCore().getWorldManager();
         this.config = config;
         this.universeRootPerm = this.module.getBasePermission().childWildcard("universe");
 
@@ -105,7 +107,7 @@ public class Multiverse implements Listener
                     this.universes.put(universeName, Universe.load(this.module, this, universeDir));
                 }
             }
-            Set<World> missingWorlds = this.module.getCore().getWorldManager().getWorlds();
+            Set<World> missingWorlds = this.wm.getWorlds();
             Map<String, Set<World>> found = new HashMap<>();
             for (Entry<String, Universe> entry : this.universes.entrySet())
             {
@@ -146,7 +148,7 @@ public class Multiverse implements Listener
             CommandSender sender = this.module.getCore().getCommandManager().getConsoleSender();
             sender.sendTranslated("&6Scraping together Matter...");
             Map<String, Set<World>> found = new HashMap<>();
-            this.searchUniverses(found, this.module.getCore().getWorldManager().getWorlds(), sender);
+            this.searchUniverses(found, this.wm.getWorlds(), sender);
             sender.sendTranslated("&eFinishing research...");
             for (Entry<String, Set<World>> entry : found.entrySet())
             {
@@ -154,13 +156,13 @@ public class Multiverse implements Listener
                 Files.createDirectories(universeDir);
                 this.universes.put(entry.getKey(), Universe.create(this.module, this, universeDir, entry.getValue()));
             }
-            sender.sendTranslated("&eFound &6%d&e universes with &6%d&e worlds!", found.size(), this.module.getCore().getWorldManager().getWorlds().size());
+            sender.sendTranslated("&eFound &6%d&e universes with &6%d&e worlds!", found.size(), this.wm.getWorlds().size());
         }
         for (Universe universe : this.universes.values())
         {
             for (World world : universe.getWorlds())
             {
-                this.worlds.put(world, universe);
+                this.worlds.put(world.getName(), universe);
             }
         }
         if (this.config.mainUniverse == null || this.universes.get(this.config.mainUniverse) == null)
@@ -174,8 +176,6 @@ public class Multiverse implements Listener
             this.config.mainUniverse = universe.getName();
             this.config.save();
         }
-        this.mainWorld = this.universes.get(this.config.mainUniverse).getMainWorld();
-
         this.module.getCore().getEventManager().registerListener(this.module, this);
     }
 
@@ -233,14 +233,15 @@ public class Multiverse implements Listener
     {
         try
         {
-            Universe oldUniverse = this.getUniverse(event.getFrom());
-            Universe newUniverse = this.getUniverse(event.getPlayer().getWorld());
+            Universe oldUniverse = this.getUniverseFrom(event.getFrom());
+            Universe newUniverse = this.getUniverseFrom(event.getPlayer().getWorld());
             if (oldUniverse != newUniverse)
             {
                 event.getPlayer().closeInventory();
                 oldUniverse.savePlayer(event.getPlayer(), event.getFrom());
                 newUniverse.loadPlayer(event.getPlayer());
             }
+            // TODO else need to change gamemode?
             this.savePlayer(event.getPlayer());
         }
         catch (UniverseCreationException e)
@@ -274,10 +275,10 @@ public class Multiverse implements Listener
         {
             return;
         }
-        Universe universe = this.getUniverse(to.getWorld());
+        Universe universe = this.getUniverseFrom(to.getWorld());
         if (!universe.checkPlayerAccess(event.getPlayer(), to.getWorld()))
         {
-            event.setCancelled(true); // TODO check old location
+            event.setCancelled(true); // TODO check if player has access to the world he is currently in
             User user = this.module.getCore().getUserManager().getExactUser(event.getPlayer().getName());
             user.sendTranslated("&cYou are not allowed to enter the universe &6%s&c!", universe.getName());
         }
@@ -287,7 +288,7 @@ public class Multiverse implements Listener
     public void onPortalUse(PlayerPortalEvent event)
     {
         World world = event.getPlayer().getWorld();
-        Universe universe = this.getUniverse(world);
+        Universe universe = this.getUniverseFrom(world);
         TravelAgent agent = event.getPortalTravelAgent();
         switch (event.getCause())
         {
@@ -312,7 +313,7 @@ public class Multiverse implements Listener
     public void onEntityPortal(EntityPortalEvent event)
     {
         World world = event.getEntity().getWorld();
-        Universe universe = this.getUniverse(world);
+        Universe fromUniverse = this.getUniverseFrom(world);
         TravelAgent agent = event.getPortalTravelAgent();
         if (event.getTo() == null)
         {
@@ -321,43 +322,54 @@ public class Multiverse implements Listener
         switch (event.getTo().getWorld().getEnvironment())
         {
         case NETHER:
-            if (universe.hasNetherTarget(world))
+            if (fromUniverse.hasNetherTarget(world))
             {
-                event.setTo(universe.handleNetherTarget(event.getFrom(), agent));
+                event.setTo(fromUniverse.handleNetherTarget(event.getFrom(), agent));
                 event.useTravelAgent(true);
             }
             break;
         case THE_END:
-            if (universe.hasEndTarget(world))
+            if (fromUniverse.hasEndTarget(world))
             {
-                event.setTo(universe.handleEndTarget(event.getEntity().getLocation()));
+                event.setTo(fromUniverse.handleEndTarget(event.getEntity().getLocation()));
                 event.useTravelAgent(true);
             }
             break;
         case NORMAL:
             if (event.getFrom().getWorld().getEnvironment() == Environment.THE_END)
             {
-                event.setTo(universe.handleEndTarget(event.getFrom()));
+                event.setTo(fromUniverse.handleEndTarget(event.getFrom()));
             }
             else
             {
-                event.setTo(universe.handleNetherTarget(event.getFrom(), event.getPortalTravelAgent()));
+                event.setTo(fromUniverse.handleNetherTarget(event.getFrom(), event.getPortalTravelAgent()));
                 event.useTravelAgent(true);
             }
         }
-        if (this.getUniverse(event.getTo().getWorld()) != universe) // Changing universe
+        if (this.getUniverseFrom(event.getTo().getWorld()) != fromUniverse) // Changing universe
         {
             if (event.getEntity() instanceof Player)
             {
                 return;
             }
-            if (event.getEntity() instanceof InventoryHolder)
+            Universe toUniverse = this.getUniverseFrom(event.getTo().getWorld());
+            if (fromUniverse.getConfig().entityTp.enable && toUniverse.getConfig().entityTp.enable)
             {
-                event.setCancelled(true); // TODO config allow entities with inventory to travel to other universe
+                if (event.getEntity() instanceof InventoryHolder)
+                {
+                    if (fromUniverse.getConfig().entityTp.inventory && toUniverse.getConfig().entityTp.inventory)
+                    {
+                        return;
+                    }
+                    else
+                    {
+                        event.setCancelled(true);
+                    }
+                }
             }
             else
             {
-                event.setCancelled(true); // TODO config allow entities to travel to other universe
+                event.setCancelled(true);
             }
         }
     }
@@ -379,7 +391,7 @@ public class Multiverse implements Listener
     @EventHandler
     public void onQuit(PlayerQuitEvent event)
     {
-        Universe universe = this.getUniverse(event.getPlayer().getWorld());
+        Universe universe = this.getUniverseFrom(event.getPlayer().getWorld());
         universe.savePlayer(event.getPlayer(), event.getPlayer().getWorld());
         this.savePlayer(event.getPlayer());
     }
@@ -389,9 +401,27 @@ public class Multiverse implements Listener
     {
         if (!event.isBedSpawn())
         {
-            World world = event.getPlayer().getWorld();
-            Universe universe = this.getUniverse(world);
-            event.setRespawnLocation(universe.getRespawnLocation(world));
+            World world = event.getRespawnLocation().getWorld();
+            event.setRespawnLocation(this.getUniverseFrom(world).getRespawnLocation(world));
+        }
+    }
+
+    @EventHandler(ignoreCancelled = true)
+    public void onBedLeave(final PlayerBedLeaveEvent event)
+    {
+        // TODO #waitingForBukkit for a better solution https://bukkit.atlassian.net/browse/BUKKIT-1916
+        if (!this.getUniverseFrom(event.getBed().getWorld()).getWorldConfig(event.getBed().getWorld()).spawn.allowBedRespawn)
+        {
+            // Wait until spawn is set & reset it
+            final Location spawnLocation = event.getPlayer().getBedSpawnLocation();
+            this.module.getCore().getTaskManager().runTaskDelayed(module, new Runnable()
+            {
+                @Override
+                public void run()
+                {
+                      event.getPlayer().setBedSpawnLocation(spawnLocation, true);
+                }
+            }, 1);
         }
     }
 
@@ -404,8 +434,8 @@ public class Multiverse implements Listener
             config = this.module.getCore().getConfigFactory().load(PlayerConfig.class, path.toFile(), false);
             if (config.lastWorld != null)
             {
-                Universe universe = this.getUniverse(player.getWorld());
-                Universe expected = this.getUniverse(config.lastWorld.getWorld());
+                Universe universe = this.getUniverseFrom(player.getWorld());
+                Universe expected = this.getUniverseFrom(config.lastWorld.getWorld());
                 if (universe != expected)
                 {
                     // expectedworld-actualworld_playername.yml
@@ -441,7 +471,7 @@ public class Multiverse implements Listener
             this.module.getLog().debug("Created PlayerConfig for {}" , player.getName());
             config = this.module.getCore().getConfigFactory().create(PlayerConfig.class);
         }
-        config.lastWorld = new ConfigWorld(module.getCore().getWorldManager(), player.getWorld()); // update last world
+        config.lastWorld = new ConfigWorld(this.wm, player.getWorld()); // update last world
         config.setFile(path.toFile());
         config.save();
     }
@@ -450,14 +480,28 @@ public class Multiverse implements Listener
     {
         Path path = this.dirPlayers.resolve(player.getName() + YAML.getExtention());
         PlayerConfig config = this.module.getCore().getConfigFactory().load(PlayerConfig.class, path.toFile());
-        config.lastWorld = new ConfigWorld(module.getCore().getWorldManager(), player.getWorld());
+        config.lastWorld = new ConfigWorld(this.wm, player.getWorld());
         config.save();
-        this.module.getLog().debug("{} is now in the world: {} ({})", player.getName(), player.getWorld().getName(), this.getUniverse(player.getWorld()).getName());
+        this.module.getLog().debug("{} is now in the world: {} ({})", player.getName(), player.getWorld().getName(), this.getUniverseFrom(player
+                                                                                                                                              .getWorld()).getName());
     }
 
     private WorldConfig getWorldConfig(World world)
     {
-        return this.getUniverse(world).getWorldConfig(world);
+        return this.getUniverseFrom(world).getWorldConfig(world);
+    }
+
+
+    public WorldConfig getWorldConfig(String name)
+    {
+        for (Universe universe : this.universes.values())
+        {
+            if (universe.hasWorld(name))
+            {
+                return universe.getWorldConfig(name);
+            }
+        }
+        return null;
     }
 
     public Permission getUniverseRootPerm()
@@ -465,13 +509,13 @@ public class Multiverse implements Listener
         return universeRootPerm;
     }
 
-    public Universe getUniverse(World world)
+    public Universe getUniverseFrom(World world)
     {
         if (world == null)
         {
             return null;
         }
-        Universe universe = this.worlds.get(world);
+        Universe universe = this.worlds.get(world.getName());
         if (universe == null)
         {
             HashSet<World> set = new HashSet<>();
@@ -494,6 +538,23 @@ public class Multiverse implements Listener
             {
                 Files.createDirectories(dirUniverse);
                 universe = Universe.create(module, this, dirUniverse, set);
+            }
+            catch (IOException e)
+            {
+                throw new UniverseCreationException(e);
+            }
+        }
+        return universe;
+    }
+
+    public Universe createUniverse(String name)
+    {
+        Universe universe = universes.get(name);
+        if (universe == null)
+        {
+            try
+            {
+                return Universe.create(module, this, dirUniverses.resolve(name), new HashSet<World>());
             }
             catch (IOException e)
             {
@@ -529,6 +590,16 @@ public class Multiverse implements Listener
 
     public World getMainWorld()
     {
-        return mainWorld;
+        return this.getMainUniverse().getMainWorld();
+    }
+
+    public Universe getUniverse(String name)
+    {
+        return this.universes.get(name);
+    }
+
+    public Universe getMainUniverse()
+    {
+        return this.universes.get(this.config.mainUniverse);
     }
 }

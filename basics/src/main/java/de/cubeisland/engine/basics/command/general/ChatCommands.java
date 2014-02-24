@@ -55,13 +55,13 @@ public class ChatCommands
 
 
     @Command(desc = "Sends a private message to someone", names = {
-        "message", "msg", "tell", "pm", "m", "t", "whisper", "w"
+        "tell", "message", "msg", "pm", "m", "t", "whisper", "w"
     }, min = 2, max = NO_MAX, usage = "<player> <message>")
     public void msg(CommandContext context)
     {
         if (!this.sendWhisperTo(context.getString(0), context.getStrings(1), context))
         {
-            context.sendTranslated("&cCould not find the player &2%s &cto send the message to. &eIs he offline?", context.getString(0));
+            context.sendTranslated("&cCould not find the player &2%s&c to send the message to. &eIs the player offline?", context.getString(0));
         }
     }
 
@@ -86,7 +86,7 @@ public class ChatCommands
         }
         if (!this.sendWhisperTo(lastWhisper, context.getStrings(0), context))
         {
-            context.sendTranslated("&cCould not find the player &2%s&c to reply to. &eIs he offline?", lastWhisper);
+            context.sendTranslated("&cCould not find the player &2%s&c to reply to. &eIs the player offline?", lastWhisper);
         }
     }
 

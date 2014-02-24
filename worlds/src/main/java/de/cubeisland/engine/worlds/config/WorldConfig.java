@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
+import org.bukkit.Bukkit;
 import org.bukkit.Difficulty;
 import org.bukkit.GameMode;
 import org.bukkit.World;
@@ -34,8 +35,10 @@ import org.bukkit.WorldType;
 import de.cubeisland.engine.configuration.Section;
 import de.cubeisland.engine.configuration.YamlConfiguration;
 import de.cubeisland.engine.configuration.annotations.Comment;
+import de.cubeisland.engine.core.CubeEngine;
 import de.cubeisland.engine.core.util.WorldLocation;
 import de.cubeisland.engine.core.world.ConfigWorld;
+import de.cubeisland.engine.worlds.Worlds;
 
 public class WorldConfig extends YamlConfiguration
 {
@@ -51,30 +54,12 @@ public class WorldConfig extends YamlConfiguration
         @Comment("NORMAL, NETHER or THE_END")
         public Environment environment;
         public String seed = "";
-        @Comment("FLAT, DEFAULT_1_1, LARGEBIOMES or AMPLIFIED")
+        @Comment("NORMAL, FLAT, DEFAULT_1_1, LARGEBIOMES or AMPLIFIED")
         public WorldType worldType = WorldType.NORMAL;
         @Comment("Whether to generate structures or not")
         public boolean generateStructures = true;
         @Comment("Custom Generator Class ID (consists of Plugin:generatorID)")
         public String customGenerator = null;
-    }
-
-    @Override
-    public void onLoaded(File loadedFrom)
-    {
-        if (this.getDefault() == this)
-        {
-            this.generation.environment = null;
-            this.generation.seed = null;
-        }
-        if (this.generation.environment == Environment.THE_END)
-        {
-            this.netherTarget =  null;
-        }
-        if (this.generation.environment == Environment.NETHER)
-        {
-            this.endTarget =  null;
-        }
     }
 
     @Comment("If false this world will not load automatically")
@@ -90,7 +75,7 @@ public class WorldConfig extends YamlConfiguration
                      "Empty means main world of this universe")
         public ConfigWorld respawnWorld; // empty means main universe world
         @Comment("If false sleeping in a bed will not set a players spawn. Not implemented yet")
-        public boolean allowBedRespawn = true; // TODO implement bedspawn
+        public boolean allowBedRespawn = true;
         @Comment("Keeps the spawn of this world loaded.")
         public boolean keepSpawnInMemory = false;
         @Comment("This worlds spawn")
@@ -102,7 +87,6 @@ public class WorldConfig extends YamlConfiguration
     {
         @Comment("If true players wont need permissions to access this world")
         public boolean free = true;
-        public boolean interceptTeleport = false; // TODO
     }
 
     @Comment("Mob Spawing Settings of this world")
@@ -141,6 +125,11 @@ public class WorldConfig extends YamlConfiguration
     public GameMode gameMode = GameMode.SURVIVAL;
     @Comment("This worlds difficulty")
     public Difficulty difficulty = Difficulty.NORMAL;
+
+    @Comment("The world where NetherPortals will lead to. (This won't work in an end world)")
+    public String netherTarget;
+    @Comment("The world where EndPortals will lead to. (This won't work in a nether world)")
+    public String endTarget;
 
     public void applyToWorld(World world)
     {// TODO if anything is null take from world ; update inheritance & save
@@ -185,7 +174,10 @@ public class WorldConfig extends YamlConfiguration
         this.generation.worldType = world.getWorldType();
         this.generation.generateStructures = world.canGenerateStructures();
         this.generation.environment = world.getEnvironment();
-        this.generation.seed = String.valueOf(world.getSeed());
+        if (this.generation.seed == null)
+        {
+            this.generation.seed = String.valueOf(world.getSeed());
+        }
         this.spawning.disable_animals = !world.getAllowAnimals();
         this.spawning.disable_monster = !world.getAllowMonsters();
         this.spawning.spawnLimit_ambient = world.getAmbientSpawnLimit();
@@ -197,7 +189,6 @@ public class WorldConfig extends YamlConfiguration
         this.pvp = world.getPVP();
         this.autosave = world.isAutoSave();
         this.difficulty = world.getDifficulty();
-        // TODO gamemode
         for (String rule : world.getGameRules())
         {
             String value = world.getGameRuleValue(rule);
@@ -242,8 +233,35 @@ public class WorldConfig extends YamlConfiguration
         this.generation.worldType = world.getWorldType();
     }
 
-    @Comment("The world where NetherPortals will lead to. (This won't work in an end world)")
-    public String netherTarget;
-    @Comment("The world where EndPortals will lead to. (This won't work in a nether world)")
-    public String endTarget;
+    @Override
+    public void onLoaded(File loadedFrom)
+    {
+        if (this.getDefault() == this)
+        {
+            this.generation.environment = null;
+            this.generation.seed = null;
+        }
+        if (this.generation.environment == Environment.THE_END)
+        {
+            this.netherTarget =  null;
+        }
+        if (this.generation.environment == Environment.NETHER)
+        {
+            this.endTarget =  null;
+        }
+        if (this.generation.environment == Environment.NETHER && !Bukkit.getServer().getAllowNether())
+        {
+            CubeEngine.getCore().getModuleManager().getModule(Worlds.class).getLog().warn("Nether-Worlds are disabled on this server!" +
+                                                                                              " Disabled Auto-Loading for {}",
+                                                                                          loadedFrom.getName());
+            this.autoLoad = false;
+        }
+        if (this.generation.environment == Environment.THE_END && !Bukkit.getServer().getAllowEnd())
+        {
+            CubeEngine.getCore().getModuleManager().getModule(Worlds.class).getLog().warn("End-Worlds are disabled on this server! " +
+                                                                                              "Disabled Auto-Loading for {}",
+                                                                                          loadedFrom.getName());
+            this.autoLoad = false;
+        }
+    }
 }
