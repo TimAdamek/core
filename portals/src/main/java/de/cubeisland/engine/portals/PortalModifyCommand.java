@@ -208,6 +208,7 @@ public class PortalModifyCommand extends ContainerCommand
             }
             portal.config.location.destination = new WorldLocation(location);
             portal.config.save();
+            context.sendTranslated("&aThe portal exit of portal &6%s&a was set to your current location!", portal.getName());
             return;
         }
         context.sendTranslated("&cYou have to be ingame to do this!");
@@ -240,11 +241,11 @@ public class PortalModifyCommand extends ContainerCommand
         portal.config.save();
         if (portal.config.safeTeleport)
         {
-            context.sendTranslated("&aThe portal &6%s&a will not teleport to an unsafe destination");
+            context.sendTranslated("&aThe portal &6%s&a will not teleport to an unsafe destination", portal.getName());
         }
         else
         {
-            context.sendTranslated("&aThe portal &6%s&a will also teleport to an unsafe destination");
+            context.sendTranslated("&aThe portal &6%s&a will also teleport to an unsafe destination", portal.getName());
         }
     }
 
