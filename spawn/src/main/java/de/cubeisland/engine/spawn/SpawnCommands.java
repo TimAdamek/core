@@ -33,6 +33,8 @@ import de.cubeisland.engine.core.command.parameterized.ParameterizedContext;
 import de.cubeisland.engine.core.command.reflected.Command;
 import de.cubeisland.engine.core.user.User;
 import de.cubeisland.engine.core.util.StringUtils;
+import de.cubeisland.engine.core.util.formatter.MessageType;
+import de.cubeisland.engine.core.util.math.BlockVector3;
 import de.cubeisland.engine.core.world.WorldSetSpawnEvent;
 import de.cubeisland.engine.roles.Roles;
 import de.cubeisland.engine.roles.commands.ManagementCommands;
@@ -45,7 +47,7 @@ public class SpawnCommands
 
     private final Roles roles;
     private final Spawn module;
-    
+
     private static RolesManager manager;
 
     public SpawnCommands(Roles roles, Spawn module)
@@ -55,39 +57,35 @@ public class SpawnCommands
         manager = roles.getRolesManager();
     }
 
-    @Command(desc = "Changes the respawnpoint", usage = "[<role>|global] [<x> <y> <z>] [world]", max = 4)
+    @Command(desc = "Changes the respawnpoint", max = 5,
+             usage = "[<role>|global] [<x> <y> <z>] [world]")
     public void setSpawn(CommandContext context)
     {
-        User sender = null;
-        if (context.getSender() instanceof User)
+        if (!(context.getSender() instanceof User) && context.hasArg(4))
         {
-            sender = (User)context.getSender();
+            context.sendTranslated(MessageType.NEGATIVE, "If not used ingame you have to specify a world and coordinates!");
+            context.sendTranslated(MessageType.NEUTRAL, "Use {text:global} instead of the role-name to set the default spawn.");
+            return;
+        }
+        World world;
+        if (context.hasArg(4))
+        {
+            world = context.getArg(0, World.class, null);
+            if (world == null)
+            {
+                context.sendTranslated(MessageType.NEGATIVE, "World {input} not found", context.getString(0));
+                return;
+            }
+        }
+        else
+        {
+            world = ((User)context.getSender()).getWorld();
         }
         Double x;
         Double y;
         Double z;
         float yaw = 0;
         float pitch = 0;
-        World world;
-        if (context.hasArg(4))
-        {
-            world = context.getSender().getServer().getWorld(context.getString(0));
-            if (world == null)
-            {
-                context.sendTranslated("&cWorld: %s not found", context.getString(0));
-                return;
-            }
-        }
-        else
-        {
-            if (sender == null)
-            {
-                context.sendTranslated("&cIf not used ingame you have to specify a world and coordinates!");
-                context.sendTranslated("&eUse &6\"global\"&e instead of the role-name to set the default spawn.");
-                return;
-            }
-            world = sender.getWorld();
-        }
         if (context.hasArg(3))
         {
             x = context.getArg(1, Double.class, null);
@@ -95,193 +93,201 @@ public class SpawnCommands
             z = context.getArg(3, Double.class, null);
             if (x == null || y == null || z == null)
             {
-                context.sendTranslated("&cCoordinates are invalid!");
+                context.sendTranslated(MessageType.NEGATIVE, "Coordinates are invalid!");
                 return;
             }
         }
         else
         {
-            if (sender == null)
-            {
-                context.sendTranslated("&cIf not used ingame you have to specify a world and coordinates!");
-                context.sendTranslated("&eUse &6\"global\"&e instead of the role-name to set the default spawn.");
-                return;
-            }
-            final Location loc = sender.getLocation();
+            final Location loc = ((User)context.getSender()).getLocation();
             x = loc.getX();
             y = loc.getY();
             z = loc.getZ();
             yaw = loc.getYaw();
             pitch = loc.getPitch();
         }
-        if (context.hasArg(0))
+        if (context.hasArg(0) && !"global".equalsIgnoreCase(context.getString(0)))
         {
             Role role = manager.getProvider(world).getRole(context.getString(0));
             if (role == null)
             {
-                if (!context.getString(0).equalsIgnoreCase("global"))
-                {
-                    context.sendTranslated("&cCould not find the role &6%s&c in &6%s&c!",context.getString(0),world.getName());
-                    return;
-                }
-            }
-            else
-            {
-                String[] locStrings = new String[6];
-                locStrings[0] = String.valueOf(x.intValue());
-                locStrings[1] = String.valueOf(y.intValue());
-                locStrings[2] = String.valueOf(z.intValue());
-                locStrings[3] = String.valueOf(yaw);
-                locStrings[4] = String.valueOf(pitch);
-                locStrings[5] = world.getName();
-                role.setMetadata("rolespawn", StringUtils.implode(":", locStrings));
-                role.save();
-                manager.getProvider(world).recalculateRoles();
+                context.sendTranslated(MessageType.NEGATIVE, "Could not find the role {input} in {world}!", context.getString(0), world);
                 return;
             }
+            setRoleSpawn(world, x, y, z, yaw, pitch, role);
+            return;
         }
-        this.module.getCore().getEventManager().fireEvent(
-            new WorldSetSpawnEvent(this.module.getCore(), world, new Location(world, x,y,z, yaw, pitch)));
+        // else global world spawn
+        this.module.getCore().getEventManager().fireEvent(new WorldSetSpawnEvent(this.module.getCore(), world, new Location(world, x,y,z, yaw, pitch)));
         world.setSpawnLocation(x.intValue(), y.intValue(), z.intValue());
-        context.sendTranslated("&aThe spawn in &6%s&a is now set to &eX:&6%d &eY:&6%d &eZ:&6%d", world.getName(), x.intValue(), y.intValue(), z.intValue());
+        context.sendTranslated(MessageType.POSITIVE, "The spawn in {world} is now set to {vector}", world, new BlockVector3(x.intValue(), y.intValue(), z.intValue()));
     }
 
-    @Command(desc = "Teleport directly to the worlds spawn.", usage = "[player] [world <world>] [role <role>]", max = 2,
-             params = {
-                 @Param(names = {"world", "w", "in"}, type = World.class),
-                 @Param(names = {"role", "r"}, type = String.class, completer = RoleCompleter.class)
-             } ,
-             flags = {
-        @Flag(longName = "force", name = "f"),
-        @Flag(longName = "all", name = "a")
-    })
+    private void setRoleSpawn(World world, Double x, Double y, Double z, float yaw, float pitch, Role role)
+    {
+        String[] locStrings = new String[6];
+        locStrings[0] = String.valueOf(x.intValue());
+        locStrings[1] = String.valueOf(y.intValue());
+        locStrings[2] = String.valueOf(z.intValue());
+        locStrings[3] = String.valueOf(yaw);
+        locStrings[4] = String.valueOf(pitch);
+        locStrings[5] = world.getName();
+        role.setMetadata("rolespawn", StringUtils.implode(":", locStrings));
+        role.save();
+        manager.getProvider(world).recalculateRoles();
+    }
+
+    @Command(desc = "Teleport directly to the worlds spawn.",
+             usage = "[player]|* [world <world>] [role <role>]", max = 1,
+             params = {@Param(names = {"world", "w", "in"}, type = World.class),
+                       @Param(names = {"role", "r"}, type = String.class, completer = RoleCompleter.class)} ,
+             flags = @Flag(longName = "force", name = "f"))
     public void spawn(ParameterizedContext context)
     {
-        User user = null;
-        if (context.getSender() instanceof User)
+        if (!(context.getSender() instanceof User || context.hasArg(0)))
         {
-            user = (User)context.getSender();
+            context.sendTranslated(MessageType.NEGATIVE, "{text:ProTip}: Teleport does not work IRL!");
+            return;
         }
-        World world = module.getConfiguration().mainWorld;
-        if (world == null && user != null)
-        {
-            world = user.getWorld();
-        }
-        boolean force = false;
-        if (context.hasFlag("f") && module.perms().COMMAND_SPAWN_FORCE.isAuthorized(context.getSender()))
-        {
-            force = true; // if not allowed ignore flag
-        }
+        World world;
         if (context.hasParam("world"))
         {
             world = context.getParam("world", null);
             if (world == null)
             {
-                context.sendTranslated("&cWorld &6%s&c not found!", context.getString("world"));
+                context.sendTranslated(MessageType.NEGATIVE, "World {input} not found!", context.getString("world"));
                 return;
             }
         }
-        if (world == null)
+        else if (module.getConfiguration().mainWorld == null || module.getConfiguration().mainWorld.getWorld() == null)
         {
-            context.sendTranslated("&cYou have to specify a world!");
+            context.sendTranslated(MessageType.CRITICAL, "Unknown configured main world!");
+            context.sendTranslated(MessageType.CRITICAL, "Show this error to an administrator!");
             return;
         }
-        if (context.hasFlag("a"))
+        else
         {
-            if (!module.perms().COMMAND_SPAWN_ALL.isAuthorized(context.getSender()))
-            {
-                context.sendTranslated("&cYou are not allowed to spawn everyone!");
-                return;
-            }
-            Location loc = world.getSpawnLocation().add(0.5, 0, 0.5);
-            for (User player : context.getCore().getUserManager().getOnlineUsers())
-            {
-                final Location spawnLocation;
-                RolesAttachment rolesAttachment = player.get(RolesAttachment.class);
-                if (rolesAttachment == null)
-                {
-                    this.roles.getLog().warn("Missing RolesAttachment!");
-                    return;
-                }
-                String rolespawn = rolesAttachment.getCurrentMetadataString("rolespawn");
-                if (rolespawn != null)
-                {
-                    spawnLocation = this.getSpawnLocation(rolespawn);
-                    if (spawnLocation == null)
-                    {
-                        context.sendTranslated("&cInvalid spawn-location for the role of &2%s&c! &ePlease check your role-configurations!\n&7%s",
-                                               player.getName(),rolespawn);
-                        return;
-                    }
-                    spawnLocation.add(0.5, 0, 0.5);
-                }
-                else
-                {
-                    spawnLocation = loc;
-                }
-                if (!force)
-                {
-                    if (module.perms().COMMAND_SPAWN_PREVENT.isAuthorized(player))
-                    {
-                        continue;
-                    }
-                }
-                this.tpToSpawn(user,spawnLocation,force);
-                return;
-            }
-            this.module.getCore().getUserManager().broadcastMessage("&aTeleported everyone to the spawn of %s!", world.getName());
-            return;
+            world = module.getConfiguration().mainWorld.getWorld();
         }
-        if (user == null && !context.hasArg(0))
-        {
-            context.sendTranslated("&6ProTip: &cTeleport does not work IRL!");
-            return;
-        }
-        if (context.hasArg(0))
-        {
-            user = context.getUser(0);
-            if (user == null)
-            {
-                context.sendTranslated("&cUser &2%s &cnot found!", context.getString(0));
-                return;
-            }
-            if (!user.isOnline())
-            {
-                context.sendTranslated("&cYou cannot teleport an offline player to spawn!");
-                return;
-            }
-            if (!force && module.perms().COMMAND_SPAWN_PREVENT.isAuthorized(user))
-            {
-                context.sendTranslated("&cYou are not allowed to spawn %s!", user.getName());
-                return;
-            }
-        }
-        final Location spawnLocation;
+        Role role = null;
+        Location spawnLocation;
         if (context.hasParam("role"))
         {
             String roleName = context.getString("role");
-            Role role = manager.getProvider(world).getRole(roleName);
+            role = manager.getProvider(world).getRole(roleName);
             if (role == null)
             {
-                context.sendTranslated("&cCould not find the role &6%s&c in &6%s&c!",roleName,world.getName());
+                context.sendTranslated(MessageType.NEGATIVE, "Could not find the role {input} in {world}!", roleName, world);
                 return;
             }
             String rolespawn = role.getRawMetadata().get("rolespawn");
             if (rolespawn == null)
             {
-                context.sendTranslated("&cThe role &6%s&c in &6%s&c has no spawn-point!",role.getName(),world.getName());
+                context.sendTranslated(MessageType.NEGATIVE, "The role {name} in {world} has no spawn-point!", role.getName(), world);
                 return;
             }
             spawnLocation = this.getSpawnLocation(rolespawn);
             if (spawnLocation == null)
             {
-                context.sendTranslated("&cInvalid spawn-location for the role &6%s&c! &ePlease check your role-configuration!\n&7%s",
-                                       role.getName(),rolespawn);
+                context.sendTranslated(MessageType.NEGATIVE, "Invalid spawn-location for the role {name}! Please check your role-configuration!\n{}", role.getName(), rolespawn);
                 return;
             }
-            context.sendTranslated("&aYou are now standing at the spawn of &6%s&a!",role.getName());
         }
         else
+        {
+            spawnLocation = world.getSpawnLocation().add(0.5, 0, 0.5);
+        }
+
+        boolean force = false;
+        if (context.hasFlag("f") && module.perms().COMMAND_SPAWN_FORCE.isAuthorized(context.getSender()))
+        {
+            force = true; // if not allowed ignore flag
+        }
+
+        List<User> tpList = new ArrayList<>();
+        if (context.hasArg(0))
+        {
+            boolean all = false;
+            if ("*".equals(context.getString(0)))
+            {
+                all = true;
+                if (!module.perms().COMMAND_SPAWN_ALL.isAuthorized(context.getSender()))
+                {
+                    context.sendTranslated(MessageType.NEGATIVE, "You are not allowed to spawn everyone!");
+                    return;
+                }
+
+                for (User user : context.getCore().getUserManager().getOnlineUsers())
+                {
+                    if (!force && module.perms().COMMAND_SPAWN_PREVENT.isAuthorized(user))
+                    {
+                        continue;
+                    }
+                    tpList.add(user);
+                }
+            }
+            else
+            {
+                String[] names = StringUtils.explode(",", context.getString(0));
+                for (String name : names)
+                {
+                    User user = context.getCore().getUserManager().findUser(name);
+                    if (user == null)
+                    {
+                        context.sendTranslated(MessageType.NEGATIVE, "User {user} not found!", context.getString(0));
+                        return;
+                    }
+                    if (!user.isOnline())
+                    {
+                        context.sendTranslated(MessageType.NEGATIVE, "You cannot teleport an offline player to spawn!");
+                        return;
+                    }
+                    if (!force && module.perms().COMMAND_SPAWN_PREVENT.isAuthorized(user))
+                    {
+                        context.sendTranslated(MessageType.NEGATIVE, "You are not allowed to spawn {user}!", user);
+                        return;
+                    }
+                    tpList.add(user);
+                }
+            }
+            for (User user : tpList)
+            {
+                this.tpToSpawn(user, spawnLocation, force);
+            }
+            if (all)
+            {
+                // BroadCast
+                if (role == null)
+                {
+                    this.module.getCore().getUserManager().broadcastMessage(MessageType.POSITIVE, "Teleported everyone to the spawn of {world}!", world);
+                }
+                else
+                {
+                    this.module.getCore().getUserManager().broadcastMessage(MessageType.POSITIVE, "Teleported everyone to the spawn of the role {name#role} in {world}!", role.getName(), world);
+                }
+            }
+            else
+            {
+                if (role == null)
+                {
+                    context.getSender().sendTranslatedN(MessageType.POSITIVE, tpList.size(),
+                                                        "Teleported {1:user} to the spawn of {world}",
+                                                        "Teleported {2:integer#amount} users to the spawn of {world}",
+                                                        world, tpList.get(0), tpList.size());
+                }
+                else
+                {
+                    context.getSender().sendTranslatedN(MessageType.POSITIVE, tpList.size(),
+                                                        "Teleported {2:user} to the spawn of the role {name#role} in {world}",
+                                                        "Teleported {3:integer#amount} users to the spawn of the role {name#role} in {world}",
+                                                        role.getName(), world, tpList.get(0), tpList.size());
+                }
+            }
+            return;
+        }
+        // else no user specified
+        User user = (User)context.getSender();
+        if (role == null)
         {
             RolesAttachment rolesAttachment = user.get(RolesAttachment.class);
             if (rolesAttachment == null)
@@ -296,19 +302,24 @@ public class SpawnCommands
                 Location userLocation = user.getLocation();
                 spawnLocation.setPitch(userLocation.getPitch());
                 spawnLocation.setYaw(userLocation.getYaw());
+                context.sendTranslated(MessageType.POSITIVE, "You are now standing at the spawn of {world}!", world);
             }
             else
             {
                 spawnLocation = this.getSpawnLocation(rolespawn);
                 if (spawnLocation == null)
                 {
-                    context.sendTranslated("&cInvalid spawn-location for your role! &ePlease check your role-configurations!\n&7%s",rolespawn);
+                    context.sendTranslated(MessageType.NEGATIVE, "Invalid spawn-location for your role! Please check your role-configurations!\n{}", rolespawn);
                     return;
                 }
+                context.sendTranslated(MessageType.POSITIVE, "You are now standing at your role-spawn!");
             }
         }
-        spawnLocation.add(0.5, 0, 0.5);
-        this.tpToSpawn(user,spawnLocation,force);
+        else
+        {
+            context.sendTranslated(MessageType.POSITIVE, "You are now standing at the spawn of {name#role} in {world}!", role.getName(), world);
+        }
+        this.tpToSpawn(user, spawnLocation, force);
     }
 
     private Location getSpawnLocation(String value)

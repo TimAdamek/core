@@ -28,6 +28,7 @@ import org.bukkit.plugin.Plugin;
 import de.cubeisland.engine.core.Core;
 import de.cubeisland.engine.core.command.CommandSender;
 import de.cubeisland.engine.core.permission.Permission;
+import de.cubeisland.engine.core.util.formatter.MessageType;
 
 public class TestConsoleSender implements CommandSender
 {
@@ -75,15 +76,27 @@ public class TestConsoleSender implements CommandSender
     }
 
     @Override
-    public String translate(String message, Object... params)
+    public String translate(MessageType type, String message, Object... params)
     {
         return null;  //To change body of implemented methods use File | Settings | File Templates.
     }
 
     @Override
-    public void sendTranslated(String message, Object... params)
+    public void sendTranslatedN(MessageType type, int n, String singular, String plural, Object... params)
     {
-        this.sendMessage(this.translate(message, params));
+        //To change body of implemented methods use File | Settings | File Templates.
+    }
+
+    @Override
+    public String translateN(MessageType type, int n, String singular, String plural, Object... params)
+    {
+        return null; //To change body of implemented methods use File | Settings | File Templates.
+    }
+
+    @Override
+    public void sendTranslated(MessageType type, String message, Object... params)
+    {
+        this.sendMessage(this.translate(type, message, params));
     }
 
     @Override

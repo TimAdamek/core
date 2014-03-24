@@ -21,6 +21,7 @@ import java.util.Locale;
 
 import de.cubeisland.engine.core.Core;
 import de.cubeisland.engine.core.permission.Permission;
+import de.cubeisland.engine.core.util.formatter.MessageType;
 
 public interface CommandSender extends org.bukkit.command.CommandSender
 {
@@ -36,7 +37,11 @@ public interface CommandSender extends org.bukkit.command.CommandSender
 
     void sendMessage(String message);
 
-    String translate(String message, Object... params);
+    String translate(MessageType type, String message, Object... params);
 
-    void sendTranslated(String message, Object... params);
+    void sendTranslated(MessageType type, String message, Object... params);
+
+    void sendTranslatedN(MessageType type, int n, String singular, String plural, Object... params);
+
+    String translateN(MessageType type, int n, String singular, String plural, Object... params);
 }

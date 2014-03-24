@@ -34,7 +34,6 @@ import de.cubeisland.engine.core.bukkit.BukkitUtils;
 import de.cubeisland.engine.core.util.matcher.Match;
 
 import static de.cubeisland.engine.core.util.StringUtils.explode;
-import static de.cubeisland.engine.core.util.StringUtils.implode;
 
 public class PreCommandListener implements Listener
 {
@@ -75,17 +74,17 @@ public class PreCommandListener implements Listener
             {
                 if (matches.size() == 1)
                 {
-                    sender.sendMessage(this.core.getI18n().translate(language, "&cCouldn't find &e/%s&c. Did you mean &a/%s&c?", label, matches.iterator().next()));
+                    sender.sendMessage(this.core.getI18n().translate(language, "Couldn't find &e/%s&c. Did you mean &a/%s&c?"));
                 }
                 else
                 {
                     Collections.sort(matches, String.CASE_INSENSITIVE_ORDER);
-                    sender.sendMessage(this.core.getI18n().translate(language, "&eDid you mean one of these: &a%s &e?", "/" + implode(", /", matches)));
+                    sender.sendMessage(this.core.getI18n().translate(language, "&eDid you mean one of these: &a%s &e?"));
                 }
             }
             else
             {
-                sender.sendMessage(this.core.getI18n().translate(language, "&cI couldn't find any command for &e/%s &c...", label));
+                sender.sendMessage(this.core.getI18n().translate(language, "&cI couldn't find any command for &e/%s &c..."));
             }
             return true;
         }

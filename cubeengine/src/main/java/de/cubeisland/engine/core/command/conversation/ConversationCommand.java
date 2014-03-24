@@ -37,6 +37,7 @@ import de.cubeisland.engine.core.user.User;
 import de.cubeisland.engine.core.util.ChatFormat;
 import de.cubeisland.engine.core.util.StringUtils;
 
+import de.cubeisland.engine.core.util.formatter.MessageType;
 import gnu.trove.set.hash.TLongHashSet;
 
 public abstract class ConversationCommand extends CubeCommand implements Listener
@@ -66,7 +67,7 @@ public abstract class ConversationCommand extends CubeCommand implements Listene
         User user = this.getModule().getCore().getUserManager().getExactUser(event.getPlayer().getName());
         if (this.hasUser(user))
         {
-            user.sendMessage(ChatFormat.parseFormats("&5[&fChatCommand&5]&f ") + event.getMessage());
+            user.sendMessage(ChatFormat.PURPLE + "[" + ChatFormat.WHITE + "ChatCommand" + ChatFormat.PURPLE + "] " + ChatFormat.WHITE + event.getMessage());
             this.execute(event.getPlayer(), "", StringUtils.explode(" ", event.getMessage()));
             event.setCancelled(true);
         }
@@ -177,19 +178,19 @@ public abstract class ConversationCommand extends CubeCommand implements Listene
     @Override
     public void help(HelpContext context) throws Exception
     {
-        context.sendTranslated("&6Flags:");
+        context.sendTranslated(MessageType.NEUTRAL, "Flags:");
         Set<String> flags = new HashSet<>();
         for (CommandFlag flag : this.getContextFactory().getFlags())
         {
             flags.add(flag.getLongName().toLowerCase());
         }
-        context.sendMessage("    "+StringUtils.implode("&7, &f",flags));
-        context.sendTranslated("&6Parameters:");
+        context.sendMessage("    " + StringUtils.implode(ChatFormat.GREY + ", " + ChatFormat.WHITE, flags));
+        context.sendTranslated(MessageType.NEUTRAL, "Parameters:");
         Set<String> params  = new HashSet<>();
         for (CommandParameter param : this.getContextFactory().getParameters())
         {
             params.add(param.getName().toLowerCase());
         }
-        context.sendMessage("    "+StringUtils.implode("&7, &f",params));
+        context.sendMessage("    " + StringUtils.implode(ChatFormat.GREY + ", " + ChatFormat.WHITE, params));
     }
 }

@@ -33,13 +33,23 @@
   <dependencies>
     <dependency>
       <groupId>de.cubeisland.engine</groupId>
-      <artifactId>configuration</artifactId>
-      <version>1.0.4-SNAPSHOT</version>
+      <artifactId>reflect</artifactId>
+      <version>1.1.0</version>
     </dependency>
     <dependency>
       <groupId>de.cubeisland.engine</groupId>
       <artifactId>logging</artifactId>
-      <version>0.0.2-SNAPSHOT</version>
+      <version>0.0.2</version>
+    </dependency>
+    <dependency>
+      <groupId>de.cubeisland.engine</groupId>
+      <artifactId>i18n</artifactId>
+      <version>1.0.1-SNAPSHOT</version>
+    </dependency>
+    <dependency>
+      <groupId>de.cubeisland.engine</groupId>
+      <artifactId>messagecompositor</artifactId>
+      <version>1.0.0</version>
     </dependency>
     <dependency>
       <groupId>mysql</groupId>
@@ -203,6 +213,9 @@
                 <exclude>templates/**</exclude>
                 <exclude>META-INF/native/**</exclude>
                 <exclude>**/*.java</exclude>
+                <exclude>META-INF/*.SF</exclude>
+                <exclude>META-INF/*.DSA</exclude>
+                <exclude>META-INF/*.RSA</exclude>
               </excludes>
             </filter>
           </filters>
