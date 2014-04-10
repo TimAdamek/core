@@ -17,6 +17,7 @@
  */
 package de.cubeisland.engine.mystcube;
 
+import java.util.Arrays;
 import java.util.Random;
 
 import org.bukkit.Bukkit;
@@ -28,6 +29,8 @@ import org.bukkit.WorldType;
 import org.bukkit.block.Biome;
 import org.bukkit.event.Listener;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.ShapedRecipe;
+import org.bukkit.inventory.meta.ItemMeta;
 
 import de.cubeisland.engine.core.module.Module;
 import de.cubeisland.engine.core.recipe.FuelIngredient;
@@ -53,6 +56,7 @@ import de.cubeisland.engine.core.recipe.result.item.ItemStackResult;
 import de.cubeisland.engine.core.recipe.result.item.KeepResult;
 import de.cubeisland.engine.core.recipe.result.item.LoreResult;
 import de.cubeisland.engine.core.recipe.result.item.NameResult;
+import de.cubeisland.engine.core.util.ChatFormat;
 import de.cubeisland.engine.mystcube.blockpopulator.VillagePopulator;
 import de.cubeisland.engine.mystcube.chunkgenerator.FlatMapGenerator;
 
@@ -99,6 +103,16 @@ public class Mystcube extends Module implements Listener
         Ingredient magicPaperIngredient = Ingredient
             .withCondition(MaterialCondition.of(Material.PAPER).and(NameCondition.of("&3Magic Paper")));
         // TODO LoreCondition
+        ItemStack item = new ItemStack(Material.PAPER, 8);
+        ItemMeta meta = item.getItemMeta();
+        meta.setDisplayName(ChatFormat.parseFormats("&6Magic Paper"));
+        meta.setLore(Arrays.asList(ChatFormat.parseFormats("&eThe D'ni used this kind of"), ChatFormat.parseFormats(
+            "&epaper to write their Ages")));
+        item.setItemMeta(meta);
+        //MAGIC_PAPER = item.clone();
+        //MAGIC_PAPER.setAmount(1);
+        ShapedRecipe magicPaper = new ShapedRecipe(item).shape("ppp", "prp", "ppp").setIngredient('p', Material.PAPER).setIngredient('r', Material.REDSTONE);
+        //this.registerRecipe(magicPaper);
 
         recipeManager.registerRecipe(this, new WorkbenchRecipe(
             new ShapelessIngredients(magicPaperIngredient, Ingredient

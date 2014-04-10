@@ -125,7 +125,6 @@ public final class BukkitCore extends JavaPlugin implements Core
     private BukkitBanManager banManager;
     private LogFactory logFactory;
     private Reflector configFactory;
-    private MessageCompositor messageCompositor;
     //endregion
 
     private List<Runnable> initHooks;
@@ -201,7 +200,6 @@ public final class BukkitCore extends JavaPlugin implements Core
 
         // depends on: file manager
         this.config = configFactory.load(BukkitCoreConfiguration.class, this.fileManager.getDataPath().resolve("core.yml").toFile());
-        this.messageCompositor = new ColoredMessageCompositor(this);
 
         this.fileManager.clearTempDir();
 
@@ -248,7 +246,7 @@ public final class BukkitCore extends JavaPlugin implements Core
         this.database = MySQLDatabase.loadFromConfig(this, this.fileManager.getDataPath().resolve("database.yml"));
         if (this.database == null)
         {
-            getLog().error("Failed to connect tot the database, aborting...");
+            getLog().error("Failed to connect to the database, aborting...");
             return;
         }
 

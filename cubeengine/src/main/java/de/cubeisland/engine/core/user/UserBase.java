@@ -25,15 +25,15 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
-import net.minecraft.server.v1_7_R1.EntityPlayer;
-import net.minecraft.server.v1_7_R1.NBTTagCompound;
-import net.minecraft.server.v1_7_R1.NBTTagDouble;
-import net.minecraft.server.v1_7_R1.NBTTagFloat;
-import net.minecraft.server.v1_7_R1.NBTTagList;
-import net.minecraft.server.v1_7_R1.PlayerInteractManager;
-import net.minecraft.server.v1_7_R1.WorldNBTStorage;
-import net.minecraft.server.v1_7_R1.WorldServer;
-import org.bukkit.craftbukkit.v1_7_R1.CraftServer;
+import net.minecraft.server.v1_7_R2.EntityPlayer;
+import net.minecraft.server.v1_7_R2.NBTTagCompound;
+import net.minecraft.server.v1_7_R2.NBTTagDouble;
+import net.minecraft.server.v1_7_R2.NBTTagFloat;
+import net.minecraft.server.v1_7_R2.NBTTagList;
+import net.minecraft.server.v1_7_R2.PlayerInteractManager;
+import net.minecraft.server.v1_7_R2.WorldNBTStorage;
+import net.minecraft.server.v1_7_R2.WorldServer;
+import org.bukkit.craftbukkit.v1_7_R2.CraftServer;
 
 import org.bukkit.Achievement;
 import org.bukkit.Bukkit;
@@ -90,20 +90,22 @@ import static de.cubeisland.engine.core.contract.Contract.expect;
  */
 public class UserBase implements Player
 {
-    private final String playerName;
+    private final UUID uuid;
+    private OfflinePlayer cachedOfflinePlayer = null;
     private EntityPlayer dummy = null;
 
-    private static final int NBT_ID_DOUBLE = new NBTTagDouble(1.0).getTypeId();
-    private static final int NBT_ID_FLOAT = new NBTTagFloat(1.0f).getTypeId();
-
-    public UserBase(String name)
+    public UserBase(UUID uuid)
     {
-        this.playerName = name;
+        this.uuid = uuid;
     }
 
     public OfflinePlayer getOfflinePlayer()
     {
-        return Bukkit.getOfflinePlayer(playerName);
+        if (this.cachedOfflinePlayer == null)
+        {
+            this.cachedOfflinePlayer = Bukkit.getOfflinePlayer(uuid);
+        }
+        return cachedOfflinePlayer;
     }
 
     private EntityPlayer getDummy()

@@ -125,10 +125,10 @@ public class CubeEconomyService implements Economy
     {
         boolean result = backingService.get().withdraw(player, amount);
         String message = (result ? "Money successfully withdrawn!" : "You don't have enough money.");
-        User user = module.getCore().getUserManager().getUser(player);
+        User user = module.getCore().getUserManager().findExactUser(player);
         if (user != null)
         {
-            message = user.translate(MessageType.NONE, message); // TODO
+            message = user.getTranslation(MessageType.NONE, message); // TODO
         }
         return new EconomyResponse(amount, getBalance(player), result ? SUCCESS : FAILURE, message);
     }

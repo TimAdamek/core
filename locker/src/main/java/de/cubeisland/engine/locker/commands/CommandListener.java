@@ -116,7 +116,7 @@ public class CommandListener implements Listener
         if (!map.keySet().contains(event.getPlayer().getName())) return;
         if (event.getClickedBlock() != null)
         {
-            User user = this.module.getCore().getUserManager().getExactUser(event.getPlayer().getName());
+            User user = this.module.getCore().getUserManager().getExactUser(event.getPlayer().getUniqueId());
             Location location = event.getClickedBlock().getLocation();
             Triplet<CommandType, String, Boolean> triplet = map.get(user.getName());
             Lock lock = this.manager.getLockAtLocation(location, user, triplet.getFirst() != INFO);
@@ -170,7 +170,7 @@ public class CommandListener implements Listener
         {
             if (lock != null)
             {
-                user.sendTranslated(MessageType.NEUTRAL, "There is already a protection here!");
+                user.sendTranslated(MessageType.NEUTRAL, "There is already protection here!");
                 this.cmdUsed(user);
                 event.setCancelled(true);
                 return true;
@@ -184,7 +184,7 @@ public class CommandListener implements Listener
                     case C_DONATION:
                     case C_FREE:
                     case C_GUARDED:
-                        user.sendTranslated(MessageType.NEUTRAL, "You can only apply guarded, donation and free protections to inventory-holders!");
+                        user.sendTranslated(MessageType.NEUTRAL, "You can only apply guarded, donation and free protections to inventory holders!");
                         event.setCancelled(true);
                         this.cmdUsed(user);
                         return true;
@@ -214,7 +214,7 @@ public class CommandListener implements Listener
     {
         if (event.getPlayer().isSneaking()) return;
         if (!map.keySet().contains(event.getPlayer().getName())) return;
-        User user = this.module.getCore().getUserManager().getExactUser(event.getPlayer().getName());
+        User user = this.module.getCore().getUserManager().getExactUser(event.getPlayer().getUniqueId());
         try
         {
             Location location = event.getRightClicked().getLocation();
@@ -320,6 +320,7 @@ public class CommandListener implements Listener
         case GIVE:
             if (lock.isOwner(user) || module.perms().CMD_GIVE_OTHER.isAuthorized(user))
             {
+                // TODO UUID stuff
                 User newOwner = this.module.getCore().getUserManager().getExactUser(second);
                 lock.setOwner(newOwner);
                 user.sendTranslated(MessageType.NEUTRAL, "{user} is now the owner of this protection.", newOwner.getName());
@@ -341,7 +342,7 @@ public class CommandListener implements Listener
             }
             else
             {
-                user.sendTranslated(MessageType.NEGATIVE, "You are not allowed to modify this protections flags!");
+                user.sendTranslated(MessageType.NEGATIVE, "You are not allowed to modify the flags for this protection!");
             }
             break;
         case FLAGS_UNSET:
@@ -365,7 +366,7 @@ public class CommandListener implements Listener
             }
             else
             {
-                user.sendTranslated(MessageType.NEGATIVE, "You are not allowed to modify this protections flags!");
+                user.sendTranslated(MessageType.NEGATIVE, "You are not allowed to modify the flags for this protection!");
             }
             break;
         default: throw new IllegalArgumentException();

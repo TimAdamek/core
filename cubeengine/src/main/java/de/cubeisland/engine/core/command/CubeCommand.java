@@ -247,11 +247,11 @@ public abstract class CubeCommand extends Command
     {
         if (sender instanceof User)
         {
-            return usage.replace('{', '[').replace('}', ']');
+            return usage.replace('(', '[').replace(')', ']');
         }
         else
         {
-            return usage.replace('{', '<').replace('}', '>');
+            return usage.replace('(', '<').replace(')', '>');
         }
     }
 
@@ -299,7 +299,7 @@ public abstract class CubeCommand extends Command
     {
         return (sender instanceof User ? "/" : "") + this
             .implodeCommandParentNames(" ") + ' ' + replaceSemiOptionalArgs(sender,
-                                sender.translate(MessageType.NONE, super.getUsage()));
+                                sender.getTranslation(MessageType.NONE, super.getUsage()));
     }
 
     /**
@@ -314,7 +314,7 @@ public abstract class CubeCommand extends Command
         final CommandSender sender = context.getSender();
         return (sender instanceof User ? "/" : "") + StringUtils
             .implode(" ", context.getLabels()) + ' ' + replaceSemiOptionalArgs(sender, sender
-            .translate(MessageType.NONE, super.getUsage()));
+            .getTranslation(MessageType.NONE, super.getUsage()));
     }
 
     /**
@@ -327,11 +327,8 @@ public abstract class CubeCommand extends Command
      */
     public String getUsage(CommandSender sender, List<String> parentLabels)
     {
-        StringBuilder usage = new StringBuilder(sender instanceof User ? "/" : "");
-        usage.append(StringUtils.implode(" ", parentLabels)).append(' ')
-            .append(this.getName()).append(' ')
-            .append(sender.translate(MessageType.NONE, super.getUsage()));
-        return usage.toString();
+        return sender instanceof User ? "/" : "" + StringUtils.implode(" ", parentLabels) + ' ' + this
+            .getName() + ' ' + sender.getTranslation(MessageType.NONE, super.getUsage());
     }
 
     /**
@@ -451,7 +448,7 @@ public abstract class CubeCommand extends Command
         }
         else if (bukkitSender instanceof Player)
         {
-            return core.getUserManager().getExactUser(bukkitSender.getName());
+            return core.getUserManager().getExactUser(((Player)bukkitSender).getUniqueId());
         }
         else if (bukkitSender instanceof org.bukkit.command.ConsoleCommandSender)
         {
@@ -717,7 +714,7 @@ public abstract class CubeCommand extends Command
         if (this.hasChildren())
         {
             context.sendMessage(" ");
-            context.sendTranslated(MessageType.NEUTRAL, "The following sub commands are available:");
+            context.sendTranslated(MessageType.NEUTRAL, "The following subcommands are available:");
             context.sendMessage(" ");
 
             final CommandSender sender = context.getSender();
@@ -725,7 +722,7 @@ public abstract class CubeCommand extends Command
             {
                 if (command.testPermissionSilent(sender))
                 {
-                    context.sendMessage(ChatFormat.YELLOW + command.getName() + ChatFormat.WHITE + ": " + ChatFormat.GREY + sender.translate(MessageType.NONE, command
+                    context.sendMessage(ChatFormat.YELLOW + command.getName() + ChatFormat.WHITE + ": " + ChatFormat.GREY + sender.getTranslation(MessageType.NONE, command
                         .getDescription()));
                 }
             }

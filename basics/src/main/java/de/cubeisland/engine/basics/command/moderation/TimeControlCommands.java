@@ -57,7 +57,7 @@ public class TimeControlCommands
     @Command(desc = "Changes the time of a world",
              flags = @Flag(longName = "lock", name = "l"),
              params = @Param(names = { "w", "worlds", "in"}),
-             max = -1, usage = "<time> [w <worlds>]")
+             max = 1, usage = "<time> [w <worlds>]")
     public void time(ParameterizedContext context)
     {
         List<World> worlds;
@@ -88,7 +88,7 @@ public class TimeControlCommands
             }
             else
             {
-                throw new IncorrectUsageException(context.getSender().translate(MessageType.NEGATIVE, "You have to specify a world when using this command from the console!"));
+                throw new IncorrectUsageException(context.getSender().getTranslation(MessageType.NEGATIVE, "You have to specify a world when using this command from the console!"));
             }
         }
         if (context.hasArg(0))
@@ -101,15 +101,15 @@ public class TimeControlCommands
             }
             if (worlds.size() == 1)
             {
-                context.sendTranslated(MessageType.POSITIVE, "The time of {world} has been set to {input#time} ({input#neartime})!", worlds.get(0), Match.time().format(time), Match.time().getNearTimeName(time));
+                context.sendTranslated(MessageType.POSITIVE, "The time of {world} have been set to {input#time} ({input#neartime})!", worlds.get(0), Match.time().format(time), Match.time().getNearTimeName(time));
             }
             else if ("*".equals(context.getString("w")))
             {
-                context.sendTranslated(MessageType.POSITIVE, "The time of all worlds has been set to {input#time} ({input#neartime})!", Match.time().format(time), Match.time().getNearTimeName(time));
+                context.sendTranslated(MessageType.POSITIVE, "The time of all worlds have been set to {input#time} ({input#neartime})!", Match.time().format(time), Match.time().getNearTimeName(time));
             }
             else
             {
-                context.sendTranslated(MessageType.POSITIVE, "The time of {amount} worlds have been set to {input#time} ({input#neartime})!", worlds.size(), Match.time().format(time), Match.time().getNearTimeName(time));
+                context.sendTranslated(MessageType.POSITIVE, "The time of {amount} worlds have been set to {input#time} ({input#neartime})!", worlds.size(), Match.time().format(time), Match.time().getNearTimeName(time)); // TODO this section could do with a non-plural if there is only 1 world
             }
             for (World world : worlds)
             {
@@ -157,7 +157,7 @@ public class TimeControlCommands
             time = Match.time().matchTimeValue(timeString);
             if (time == null)
             {
-                context.sendTranslated(MessageType.NEGATIVE, "Invalid time-format!");
+                context.sendTranslated(MessageType.NEGATIVE, "Invalid time format!");
                 return;
             }
         }
@@ -172,7 +172,7 @@ public class TimeControlCommands
             user = context.getUser(1);
             if (user == null)
             {
-                context.sendTranslated(MessageType.NEGATIVE, "User {user} not found!", context.getString(1));
+                context.sendTranslated(MessageType.NEGATIVE, "Player {user} not found!", context.getString(1));
                 return;
             }
             if (!module.perms().COMMAND_PTIME_OTHER.

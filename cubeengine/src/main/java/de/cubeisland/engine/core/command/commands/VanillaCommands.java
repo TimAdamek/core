@@ -108,7 +108,7 @@ public class VanillaCommands implements CommandHolder
         }
         else
         {
-            context.sendTranslated(MessageType.NEUTRAL, "Reloading the whole server... (this may take some time)");
+            context.sendTranslated(MessageType.NEUTRAL, "Reloading the whole server... this may take some time.");
             // pre-translate to avoid a NPE
             Locale locale = context.getSender().getLocale();
             long time = System.currentTimeMillis();
@@ -119,7 +119,7 @@ public class VanillaCommands implements CommandHolder
 
     @Command(
         desc = "Changes the difficulty level of the server",
-        usage = "[difficulty] {world <world>}",
+        usage = "[difficulty] (world <world>)",
         max = 1,
         params = @Param(names = {"world", "w", "in"}, type = World.class, completer = WorldCompleter.class)
     )
@@ -166,7 +166,7 @@ public class VanillaCommands implements CommandHolder
         }
         else
         {
-            context.sendTranslated(MessageType.NONE, "The current difficulty level: {input}", world.getDifficulty().name());
+            context.sendTranslated(MessageType.NONE, "Current difficulty level: {input}", world.getDifficulty().name());
             if (this.core.getServer().isHardcore())
             {
                 context.sendTranslated(MessageType.NONE, "Your server has the hardcore mode enabled.");
@@ -198,13 +198,13 @@ public class VanillaCommands implements CommandHolder
                 final DateFormat dateFormat = SimpleDateFormat.getDateInstance(SHORT, sender.getLocale());
                 for (OfflinePlayer player : ops)
                 {
-                    context.sendMessage(" - " + BRIGHT_GREEN + player.getName() + WHITE + " (" + sender.translate(MessageType.NONE, "Last seen: {input#date}", dateFormat
+                    context.sendMessage(" - " + BRIGHT_GREEN + player.getName() + WHITE + " (" + sender.getTranslation(MessageType.NONE, "Last seen: {input#date}", dateFormat
                         .format(new Date(player.getLastPlayed()))) + ")");
                 }
             }
             return;
         }
-        User user = this.core.getUserManager().getUser(context.getString(0), false);
+        User user = this.core.getUserManager().findExactUser(context.getString(0));
         if (user == null && !context.hasFlag("f"))
         {
             context.sendTranslated(MessageType.NEGATIVE, "The given player has never played on this server!");
@@ -223,16 +223,19 @@ public class VanillaCommands implements CommandHolder
             return;
         }
         offlinePlayer.setOp(true);
-        user = this.core.getUserManager().getUser(offlinePlayer.getName(), false);
-        if (user != null)
+        if (offlinePlayer.isOnline())
         {
-            user.sendTranslated(MessageType.POSITIVE, "You were opped by {sender}", context.getSender());
+            user = this.core.getUserManager().getExactUser(offlinePlayer.getUniqueId());
+            if (user != null)
+            {
+                user.sendTranslated(MessageType.POSITIVE, "You were opped by {sender}", context.getSender());
+            }
         }
         context.sendTranslated(MessageType.POSITIVE, "{user} is now an operator!", offlinePlayer);
 
         for (User onlineUser : this.core.getUserManager().getOnlineUsers())
         {
-            if (onlineUser == user || onlineUser == context.getSender() || !core.perms().COMMAND_OP_NOTIFY.isAuthorized(onlineUser))
+            if (onlineUser.getUniqueId().equals(offlinePlayer.getUniqueId()) || onlineUser == context.getSender() || !core.perms().COMMAND_OP_NOTIFY.isAuthorized(onlineUser))
             {
                 continue;
             }
@@ -244,7 +247,7 @@ public class VanillaCommands implements CommandHolder
 
     @Command(
         desc = "Revokes the operator status of a player",
-        usage = "{player}",
+        usage = "(player)",
         min = 0, max = 1,
         permDefault = FALSE
     )
@@ -274,16 +277,19 @@ public class VanillaCommands implements CommandHolder
             return;
         }
         offlinePlayer.setOp(false);
-        User user = this.core.getUserManager().getUser(offlinePlayer.getName(), false);
-        if (user != null)
+        if (offlinePlayer.isOnline())
         {
-            user.sendTranslated(MessageType.POSITIVE, "You were deopped by {user}.", context.getSender());
+            User user = this.core.getUserManager().getExactUser(offlinePlayer.getUniqueId());
+            if (user != null)
+            {
+                user.sendTranslated(MessageType.POSITIVE, "You were deopped by {user}.", context.getSender());
+            }
         }
-        context.sendTranslated(MessageType.POSITIVE, "{user} is no operator anymore!", offlinePlayer);
+        context.sendTranslated(MessageType.POSITIVE, "{user} is no longer an operator!", offlinePlayer);
 
         for (User onlineUser : this.core.getUserManager().getOnlineUsers())
         {
-            if (onlineUser == user || onlineUser == context.getSender() || !core.perms().COMMAND_DEOP_NOTIFY.isAuthorized(onlineUser))
+            if (onlineUser.getUniqueId().equals(offlinePlayer.getUniqueId()) || onlineUser == context.getSender() || !core.perms().COMMAND_DEOP_NOTIFY.isAuthorized(onlineUser))
             {
                 continue;
             }
@@ -391,7 +397,7 @@ public class VanillaCommands implements CommandHolder
             context.sendTranslated(MessageType.NEUTRAL, "This server is running {name#server} in version {input#version:color=INDIGO}", server.getName(), server.getVersion());
             context.sendTranslated(MessageType.NEUTRAL, "Bukkit API {text:version\\::color=WHITE} {input#version:color=INDIGO}", server.getBukkitVersion());
             context.sendMessage(" ");
-            context.sendTranslated(MessageType.NEUTRAL, "Expanded and improved by {text:CubeEngine:color=BRIGHT_GREEN} version {input#version:color=INDIGO}", context.getCore().getVersion());
+            context.sendTranslated(MessageType.NEUTRAL, "Expanded and improved by {text:CubeEngine:color=BRIGHT_GREEN} version {input#version:color=INDIGO}", context.getCore().getVersion().toString());
             showSourceVersion(context, core.getSourceVersion());
         }
     }

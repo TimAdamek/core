@@ -40,9 +40,13 @@ public class CoreConfiguration extends ReflectedYaml
 
     public CommandsSection commands;
 
+    @Comment("When two users have the same name in the database the old users last known name will be renamed using this pattern\n" +
+                 "{name} stands for the original name")
+    public String nameConflict = "{name}_";
+
     public class CommandsSection implements Section
     {
-        @Comment("The maximum number of similar commands to offer when more than one command matched a mistyped command.")
+        @Comment("The maximum number of similar commands to offer when more than one command matches a mistyped command.")
         public int maxCorrectionOffers = 5;
 
         @Comment("The maximum number of offers given for a tab completion request (pressing tab).")

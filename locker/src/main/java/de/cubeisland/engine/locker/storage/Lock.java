@@ -163,9 +163,9 @@ public class Lock
                 ItemStack itemStack = new ItemStack(Material.ENCHANTED_BOOK, 1);
                 ItemMeta itemMeta = itemStack.getItemMeta();
                 itemMeta.setDisplayName(this.getColorPass() + KeyBook.TITLE + this.getId());
-                itemMeta.setLore(Arrays.asList(user.translate(MessageType.NEUTRAL, ChatFormat.YELLOW + "This book can"), user
-                    .translate(MessageType.NEUTRAL, ChatFormat.YELLOW + "unlock a magically"), user
-                                                   .translate(MessageType.NEUTRAL, ChatFormat.YELLOW + "locked protection")));
+                itemMeta.setLore(Arrays.asList(user.getTranslation(MessageType.NEUTRAL, ChatFormat.YELLOW + "This book can"), user
+                    .getTranslation(MessageType.NEUTRAL, ChatFormat.YELLOW + "unlock a magically"), user
+                                                   .getTranslation(MessageType.NEUTRAL, ChatFormat.YELLOW + "locked protection")));
                 itemStack.setItemMeta(itemMeta);
                 user.setItemInHand(itemStack);
                 HashMap<Integer, ItemStack> full = user.getInventory().addItem(new ItemStack(Material.BOOK, amount));
@@ -244,7 +244,7 @@ public class Lock
                         name = name.substring(1);
                         add = false;
                     }
-                    User modifyUser = this.manager.um.getUser(name, false);
+                    User modifyUser = this.manager.um.findExactUser(name);
                     if (modifyUser == null) throw new IllegalArgumentException(); // This is prevented by checking first in the cmd execution
                     short accessType = ACCESS_FULL;
                     if (add && admin)
@@ -290,10 +290,10 @@ public class Lock
                 }
                 return;
             }
-            user.sendTranslated(MessageType.NEUTRAL, "This protection is public and so accessible to everyone");
+            user.sendTranslated(MessageType.NEUTRAL, "This protection is public and so is accessible to everyone");
             return;
         }
-        user.sendTranslated(MessageType.NEGATIVE, "You are not allowed to modify the access-list of this protection!");
+        user.sendTranslated(MessageType.NEGATIVE, "You are not allowed to modify the access list of this protection!");
     }
 
     /**
@@ -607,7 +607,7 @@ public class Lock
         {
             this.lastKeyNotify = new HashMap<>();
         }
-        User owner = this.manager.um.getUser(this.model.getOwnerId().longValue());
+        User owner = this.manager.um.getUser(this.model.getOwnerId());
         Long last = this.lastKeyNotify.get(owner.getName());
         if (last == null || TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis() - last) > 60) // 60 sec config ?
         {
@@ -631,7 +631,7 @@ public class Lock
             {
                 this.lastNotify = new HashMap<>();
             }
-            User owner = this.manager.um.getUser(this.model.getOwnerId().longValue());
+            User owner = this.manager.um.getUser(this.model.getOwnerId());
             Long last = this.lastNotify.get(owner.getName());
             if (last == null || TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis() - last) > 60) // 60 sec config ?
             {
@@ -662,7 +662,7 @@ public class Lock
 
     public User getOwner()
     {
-        return this.manager.module.getCore().getUserManager().getUser(this.model.getOwnerId().longValue());
+        return this.manager.module.getCore().getUserManager().getUser(this.model.getOwnerId());
     }
 
     public boolean isPublic()
@@ -716,10 +716,10 @@ public class Lock
             List<AccessListModel> accessors = this.getAccessors();
             if (!accessors.isEmpty())
             {
-                user.sendTranslated(MessageType.POSITIVE, "The following users do have direct access to this protection");
+                user.sendTranslated(MessageType.POSITIVE, "The following users have direct access to this protection");
                 for (AccessListModel listModel : accessors)
                 {
-                    User accessor = this.manager.module.getCore().getUserManager().getUser(listModel.getUserId().longValue());
+                    User accessor = this.manager.module.getCore().getUserManager().getUser(listModel.getUserId());
                     if ((listModel.getLevel() & ACCESS_ADMIN) == ACCESS_ADMIN)
                     {
                         user.sendMessage("  " + ChatFormat.GREY + "- " + ChatFormat.DARK_GREEN + accessor.getName() + ChatFormat.GOLD + " [Admin}");
@@ -750,11 +750,11 @@ public class Lock
             {
                 if (user.attachOrGet(LockerAttachment.class, this.manager.module).hasUnlocked(this))
                 {
-                    user.sendTranslated(MessageType.POSITIVE, "As you memorize the pass-phrase the magic aura protecting this allows you to interact");
+                    user.sendTranslated(MessageType.POSITIVE, "As you memorize the pass phrase the magic aura protecting this allows you to interact");
                 }
                 else
                 {
-                    user.sendTranslated(MessageType.POSITIVE, "You sense that the strong magic aura protecting this wont let you through without the right pass-phrase");
+                    user.sendTranslated(MessageType.POSITIVE, "You sense that the strong magic aura protecting this wont let you through without the right passphrase");
                 }
             }
             else
@@ -770,7 +770,7 @@ public class Lock
                         || this.getProtectedType() == ProtectedType.ENTITY_CONTAINER
                         || this.getProtectedType() == ProtectedType.ENTITY_CONTAINER_LIVING)
                     {
-                        user.sendTranslated(MessageType.POSITIVE, "but is does not hinder you to put/take items in/out");
+                        user.sendTranslated(MessageType.POSITIVE, "but it does not hinder you when moving items");
                     }
                     else
                     {
@@ -801,20 +801,20 @@ public class Lock
         {
             if (this.checkPass(pass))
             {
-                user.sendTranslated(MessageType.POSITIVE, "Upon hearing the right pass-phrase the magic surrounding the container gets thinner and lets you pass!");
+                user.sendTranslated(MessageType.POSITIVE, "Upon hearing the right passphrase the magic surrounding the container gets thinner and lets you pass!");
                 user.playSound(soundLoc, Sound.PISTON_EXTEND, 1, 2);
                 user.playSound(soundLoc, Sound.PISTON_EXTEND, 1, (float)1.5);
                 user.attachOrGet(LockerAttachment.class, this.manager.module).addUnlock(this);
             }
             else
             {
-                user.sendTranslated(MessageType.NEUTRAL, "Sudden pain makes you realize this was not the right pass-phrase!");
+                user.sendTranslated(MessageType.NEUTRAL, "Sudden pain makes you realize this was not the right passphrase!");
                 user.damage(0);
             }
         }
         else
         {
-            user.sendTranslated(MessageType.NEUTRAL, "You try to open the container with a pass-phrase but nothing changes!");
+            user.sendTranslated(MessageType.NEUTRAL, "You try to open the container with a passphrase but nothing changes!");
         }
     }
 

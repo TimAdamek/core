@@ -23,6 +23,7 @@ import de.cubeisland.engine.core.Core;
 import de.cubeisland.engine.core.recipe.effect.logic.Effect;
 import de.cubeisland.engine.core.user.User;
 import de.cubeisland.engine.core.user.UserManager;
+import de.cubeisland.engine.core.util.formatter.MessageType;
 
 public class MessageEffect extends Effect
 {
@@ -42,7 +43,7 @@ public class MessageEffect extends Effect
     public boolean runEffect(Core core, Player player)
     {
         User user = manager.getExactUser(player.getName());
-        user.sendTranslated(msg, args);
+        user.sendTranslated(MessageType.NONE, msg, args);
         return true;
     }
 }
