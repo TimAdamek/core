@@ -56,6 +56,8 @@ import org.jooq.impl.DSL;
 import org.jooq.types.UInteger;
 
 import static de.cubeisland.engine.core.user.TableUser.TABLE_USER;
+import static de.cubeisland.engine.core.util.ChatFormat.WHITE;
+import static de.cubeisland.engine.core.util.formatter.MessageType.NONE;
 
 /**
  * This Manager provides methods to access the Users and saving/loading from
@@ -218,9 +220,9 @@ public abstract class AbstractUserManager implements UserManager
     protected synchronized void cacheUser(User user)
     {
         updateLastName(user);
-        this.core.getLog().debug("User {} cached!", user.getName());
         this.cachedUserByUUID.put(user.getUniqueId(), user);
         this.cachedUserByDbId.put(user.getEntity().getKey(), user);
+        this.core.getLog().debug("User {} cached!", user.getName());
         this.attachDefaults(user);
     }
 
@@ -235,15 +237,15 @@ public abstract class AbstractUserManager implements UserManager
 
     protected synchronized void removeCachedUser(User user)
     {
-        this.core.getLog().debug("Removed cached user {}!", user.getName());
         this.cachedUserByUUID.remove(user.getUniqueId());
         this.cachedUserByDbId.remove(user.getEntity().getKey());
+        this.core.getLog().debug("Removed cached user {}!", user.getName());
         user.detachAll();
     }
 
     public synchronized Set<User> getOnlineUsers()
     {
-        return new THashSet<>(this.onlineUsers);
+        return new THashSet<>(this.onlineUsers); // TODO this is not working as it should
     }
 
     public synchronized Set<User> getLoadedUsers()
@@ -253,6 +255,10 @@ public abstract class AbstractUserManager implements UserManager
 
     public void broadcastMessageWithPerm(MessageType messageType, String message, Permission perm, Object... params)
     {
+        if (message.isEmpty())
+        {
+            return;
+        }
         for (User user : this.onlineUsers)
         {
             if (perm == null || perm.isAuthorized(user))
@@ -278,14 +284,14 @@ public abstract class AbstractUserManager implements UserManager
         String name = sender.getDisplayName();
         for (User user : this.onlineUsers)
         {
-            user.sendTranslated(MessageType.NONE, starColor
+            user.sendTranslated(NONE, starColor
                 .toString() + "* {user} {input#message:color=WHITE}", name, message);
         }
     }
 
     public void broadcastStatus(String message, CommandSender sender, Object... args)
     {
-        this.broadcastStatus(ChatFormat.WHITE, message, sender, args);
+        this.broadcastStatus(WHITE, message, sender, args);
     }
 
     private void loadSalt()
@@ -358,7 +364,7 @@ public abstract class AbstractUserManager implements UserManager
     {
         for (User user : this.cachedUserByUUID.values())
         {
-            user.kickPlayer(user.getTranslation(MessageType.NONE, message, params));
+            user.kickPlayer(user.getTranslation(NONE, message, params));
         }
     }
 
