@@ -180,11 +180,4 @@ public interface Core
      * @return the recipe-manager
      */
     RecipeManager getRecipeManager();
-
-    /**
-     * Returns true after the first server tick happened
-     *
-     * @return false if the startup has not finished yet
-     */
-    boolean isStartupFinished();
 }

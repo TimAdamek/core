@@ -233,12 +233,6 @@ public class TestCore implements Core
     }
 
     @Override
-    public boolean isStartupFinished()
-    {
-        return false;
-    }
-
-    @Override
     public RecipeManager getRecipeManager()
     {
         throw new UnsupportedOperationException();
