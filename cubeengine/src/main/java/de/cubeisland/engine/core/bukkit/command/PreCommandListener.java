@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Locale;
 
 import org.bukkit.command.CommandSender;
+import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
@@ -32,6 +33,7 @@ import org.bukkit.event.server.ServerCommandEvent;
 import de.cubeisland.engine.core.bukkit.BukkitCore;
 import de.cubeisland.engine.core.bukkit.BukkitUtils;
 import de.cubeisland.engine.core.util.matcher.Match;
+import de.cubeisland.engine.core.util.formatter.MessageType;
 
 import static de.cubeisland.engine.core.util.StringUtils.explode;
 import static de.cubeisland.engine.core.util.StringUtils.implode;
@@ -71,6 +73,7 @@ public class PreCommandListener implements Listener
         String label = explode(" ", message)[0].toLowerCase(Locale.ENGLISH);
         if (this.injector.getCommand(label) == null)
         {
+            final String prefix = (sender instanceof Player ? "/" : "");
             final Locale language = BukkitUtils.getLocaleFromSender(sender);
             List<String> matches = new LinkedList<>(Match.string().getBestMatches(label, injector.getKnownCommands().keySet(), 1));
             if (matches.size() > 0 && matches.size() <= this.core.getConfiguration().commands.maxCorrectionOffers)

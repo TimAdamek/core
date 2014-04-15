@@ -19,7 +19,7 @@ package de.cubeisland.engine.shout.interactions;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
@@ -28,7 +28,6 @@ import org.bukkit.Bukkit;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
 
-import de.cubeisland.engine.core.command.ArgBounds;
 import de.cubeisland.engine.core.command.CommandContext;
 import de.cubeisland.engine.core.command.CommandResult;
 import de.cubeisland.engine.core.command.ContainerCommand;
@@ -36,7 +35,9 @@ import de.cubeisland.engine.core.command.parameterized.Flag;
 import de.cubeisland.engine.core.command.parameterized.Param;
 import de.cubeisland.engine.core.command.parameterized.ParameterizedContext;
 import de.cubeisland.engine.core.command.reflected.Alias;
+import de.cubeisland.engine.core.command.reflected.Grouped;
 import de.cubeisland.engine.core.command.reflected.Command;
+import de.cubeisland.engine.core.command.reflected.Indexed;
 import de.cubeisland.engine.core.user.User;
 import de.cubeisland.engine.core.util.ChatFormat;
 import de.cubeisland.engine.i18n.I18nUtil;
@@ -45,6 +46,7 @@ import de.cubeisland.engine.shout.announce.Announcement;
 import de.cubeisland.engine.shout.announce.MessageOfTheDay;
 
 import static de.cubeisland.engine.core.util.formatter.MessageType.*;
+import static java.util.Arrays.asList;
 
 public class ShoutCommand extends ContainerCommand
 {
@@ -52,11 +54,12 @@ public class ShoutCommand extends ContainerCommand
 
     public ShoutCommand(Shout module)
     {
-        super(module, "shout", "Announce a message to players on the server", Arrays.asList("announce"));
+        super(module, "shout", "Announce a message to players on the server");
+        this.setAliases(new HashSet<>(asList("announce")));
         this.module = module;
 
-        this.setUsage("<announcement>");
-        this.getContextFactory().setArgBounds(new ArgBounds(1, 1));
+        // TODO this.setUsage("<announcement>");
+        // TODO this.getContextFactory().setArgBounds(new ArgBounds(1, 1));
     }
 
     public CommandResult run(CommandContext context)
@@ -71,7 +74,7 @@ public class ShoutCommand extends ContainerCommand
 
         if (announcement.getFirstWorld().equals("*"))
         {
-            players = Arrays.asList(Bukkit.getOnlinePlayers());
+            players = asList(Bukkit.getOnlinePlayers());
         }
         else
         {
@@ -123,16 +126,16 @@ public class ShoutCommand extends ContainerCommand
         }
     }
 
-    @Command(desc = "Creates a new announcement", min = 1, max = 1,
-             params = {@Param(names ={"delay", "d"}),
+    @Command(desc = "Creates a new announcement",
+             indexed = @Grouped(@Indexed(value = "name")),
+             params = {
+                     @Param(names ={"message", "m"}),
+                     @Param(names ={"delay", "d"}, label = "<x> minutes|hours|days"),
                        @Param(names ={"world", "w"}),
-                       @Param(names = {"permission", "p"}),
+                       @Param(names = {"permission", "p"}, label = "permission node"),
                        @Param(names ={"group", "g"}),
-                       @Param(names ={"message", "m"}),
                        @Param(names ={"locale", "l"})},
-             flags = {@Flag(name = "fc", longName = "fixed-cycle")},
-             usage = "<name> message \"<message>\" [delay \"<x minutes|hours|days>\"] [world <world>] " +
-                     "[permission <permission node>] [locale <locale>] [-fixed-cycle]")
+             flags = {@Flag(name = "fc", longName = "fixed-cycle")})
     public void create(ParameterizedContext context)
     {
         if (!context.hasParam("message"))

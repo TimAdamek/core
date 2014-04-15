@@ -33,6 +33,7 @@ import org.bukkit.plugin.Plugin;
 import de.cubeisland.engine.core.Core;
 import de.cubeisland.engine.core.command.CommandManager;
 import de.cubeisland.engine.core.command.CommandSender;
+import de.cubeisland.engine.core.command.exception.IncorrectUsageException;
 import de.cubeisland.engine.core.command.exception.PermissionDeniedException;
 import de.cubeisland.engine.core.permission.Permission;
 import de.cubeisland.engine.core.user.User;
@@ -41,9 +42,6 @@ import de.cubeisland.engine.core.util.formatter.MessageType;
 import org.joda.time.Duration;
 import org.jooq.DSLContext;
 import org.jooq.Record1;
-
-import static de.cubeisland.engine.core.util.formatter.MessageType.NEGATIVE;
-import static de.cubeisland.engine.core.util.formatter.MessageType.NEUTRAL;
 
 /**
  * A Kit of Items a User can receive
@@ -92,8 +90,7 @@ public class Kit
         {
             if (!this.getPermission().isAuthorized(sender))
             {
-                sender.sendTranslated(NEGATIVE, "You are not allowed to give this kit.");
-                throw new PermissionDeniedException();
+                throw new PermissionDeniedException("You are not allowed to give this kit.", getPermission());
             }
         }
         if (!force)
@@ -104,8 +101,7 @@ public class Kit
                     where(TableKitsGiven.TABLE_KITS.KITNAME.like(this.name), TableKitsGiven.TABLE_KITS.USERID.eq(user.getEntity().getKey())).fetchOne();
                 if (record1 != null && record1.value1() >= this.limitUsagePerPlayer)
                 {
-                    sender.sendTranslated(NEGATIVE, "Kit limit reached.");
-                    throw new PermissionDeniedException();
+                    throw new IncorrectUsageException("Kit-limit reached.", false);
                 }
             }
             if (limitUsageDelay != 0)
@@ -113,8 +109,7 @@ public class Kit
                 Long lastUsage = user.get(KitsAttachment.class).getKitUsage(this.name);
                 if (lastUsage != null && System.currentTimeMillis() - lastUsage < limitUsageDelay)
                 {
-                    sender.sendTranslated(NEUTRAL, "This kit isn't available at the moment. Try again later!");
-                    throw new PermissionDeniedException();
+                    throw new IncorrectUsageException("This kit isn't available at the moment. Try again later!", false);
                 }
             }
         }
@@ -208,7 +203,7 @@ public class Kit
         @Override
         public boolean isAuthorized(Permission perm)
         {
-            return this.hasPermission(perm.getName());
+            return perm.isAuthorized(this);
         }
 
         @Override

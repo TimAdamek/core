@@ -23,7 +23,6 @@ import org.bukkit.Location;
 import org.bukkit.event.player.PlayerTeleportEvent;
 
 import de.cubeisland.engine.core.CubeEngine;
-import de.cubeisland.engine.core.command.ArgBounds;
 import de.cubeisland.engine.core.command.CommandContext;
 import de.cubeisland.engine.core.command.CommandResult;
 import de.cubeisland.engine.core.command.ContainerCommand;
@@ -32,6 +31,8 @@ import de.cubeisland.engine.core.command.parameterized.Param;
 import de.cubeisland.engine.core.command.parameterized.ParameterizedContext;
 import de.cubeisland.engine.core.command.reflected.Alias;
 import de.cubeisland.engine.core.command.reflected.Command;
+import de.cubeisland.engine.core.command.reflected.Grouped;
+import de.cubeisland.engine.core.command.reflected.Indexed;
 import de.cubeisland.engine.core.permission.PermDefault;
 import de.cubeisland.engine.core.user.User;
 import de.cubeisland.engine.core.util.ChatFormat;
@@ -66,27 +67,27 @@ public class HomeCommand extends ContainerCommand
     {
         if (module.getConfig().homes.multipleHomes)
         {
-            this.setUsage("<<owner:>home>");
-            this.getContextFactory().setArgBounds(new ArgBounds(0, 1));
+            // TODO this.setUsage("<<owner:>home>");
+            //this.getContextFactory().setArgBounds(new ArgBounds(0, 1));
         }
         else
         { // Set usage and argBounds according to single homes
-            this.setUsage("<owner>");
-            this.getContextFactory().setArgBounds(new ArgBounds(0, 1));
+            //this.setUsage("<owner>");
+            //this.getContextFactory().setArgBounds(new ArgBounds(0, 1));
 
-            this.getChild("set").setUsage("").getContextFactory().setArgBounds(new ArgBounds(0, 0));
-            this.getChild("move").setUsage("").getContextFactory().setArgBounds(new ArgBounds(0, 0));
-            this.getChild("remove").setUsage("").getContextFactory().setArgBounds(new ArgBounds(0, 0));
-            this.getChild("invite").setUsage("[user]").getContextFactory().setArgBounds(new ArgBounds(1, 1));
-            this.getChild("uninvite").setUsage("[user]").getContextFactory().setArgBounds(new ArgBounds(1, 1));
-            this.getChild("setgreeting").setUsage("[welcome message]");
-            this.getChild("makeprivate").setUsage("");
-            this.getChild("makepublic").setUsage("");
+            //this.getChild("set").setUsage("").getContextFactory().setArgBounds(new ArgBounds(0, 0));
+            //this.getChild("move").setUsage("").getContextFactory().setArgBounds(new ArgBounds(0, 0));
+            //this.getChild("remove").setUsage("").getContextFactory().setArgBounds(new ArgBounds(0, 0));
+            //this.getChild("invite").setUsage("[user]").getContextFactory().setArgBounds(new ArgBounds(1, 1));
+            //this.getChild("uninvite").setUsage("[user]").getContextFactory().setArgBounds(new ArgBounds(1, 1));
+            //this.getChild("setgreeting").setUsage("[welcome message]");
+            //this.getChild("makeprivate").setUsage("");
+            //this.getChild("makepublic").setUsage("");
         }
     }
 
     @Override
-    public CommandResult run(CommandContext context) throws Exception
+    public CommandResult run(CommandContext context)
     {
         if (context.isSender(User.class))
         {
@@ -192,12 +193,10 @@ public class HomeCommand extends ContainerCommand
         return null;
     }
 
-    @Alias(names = {
-        "sethome"
-    })
+    @Alias(names = {"sethome"})
     @Command(names = {"set", "sethome"},
-             desc = "Set your home", usage = "[HomeName]",
-             min = 0, max = 1,
+             desc = "Set your home",
+             indexed = @Grouped(req = false, value = @Indexed("homename")),
              flags = {@Flag(longName = "public", name = "pub")},
              permDefault = PermDefault.TRUE)
     public void setHome(ParameterizedContext context)
@@ -259,10 +258,10 @@ public class HomeCommand extends ContainerCommand
 
     @Command(desc = "Set the welcome message of homes",
              names = {"setgreeting", "greeting", "setwelcome", "setwelcomemsg"},
-             min = 1, max = -1, permDefault = PermDefault.TRUE,
-             params = {@Param(names = {"home", "h"})},
-             usage = "[Welcome message goes here] <home [home name] [-append]>",
-            flags = @Flag(longName = "append", name = "a"))
+             permDefault = PermDefault.TRUE,
+             indexed = @Grouped(req = false, value = @Indexed("welcome message"), greedy = true),
+             params = @Param(names = {"home", "h"}),
+             flags = @Flag(longName = "append", name = "a"))
     public void setWelcomeMessage(ParameterizedContext context)
     {
         if (context.getSender() instanceof User)
@@ -303,8 +302,7 @@ public class HomeCommand extends ContainerCommand
 
     @Command(names = {"move", "replace"},
              desc = "Move a home",
-             usage = "[HomeName]",
-             min = 0, max = 1,
+             indexed = @Grouped(req = false, value = @Indexed("homename")),
              permDefault = PermDefault.TRUE)
     public void moveHome(CommandContext context)
     {
@@ -354,8 +352,8 @@ public class HomeCommand extends ContainerCommand
 
     @Alias(names = {"remhome", "removehome", "delhome", "deletehome"})
     @Command(names = {"remove", "delete", "rem", "del"},
-             desc = "Remove a home", usage = "[HomeName]",
-             min = 0, max = 1,
+             desc = "Remove a home",
+             indexed = @Grouped(req = false, value = @Indexed("homename")),
              permDefault = PermDefault.TRUE)
     public void removeHome(CommandContext context)
     {
@@ -402,13 +400,12 @@ public class HomeCommand extends ContainerCommand
     @Alias(names = {"listhomes", "homes"})
     @Command(names = {"list", "listhomes"},
              desc = "List homes you can access",
-             permDefault = PermDefault.TRUE, min = 0, max = 0,
+             permDefault = PermDefault.TRUE,
              flags = {
         @Flag(name = "pub", longName = "public"),
         @Flag(name = "priv", longName = "private"),
         @Flag(name = "o", longName = "owned"),
-        @Flag(name = "i", longName = "invited")},
-             usage = "<-public> <-private> <-owned> <-invited>")
+        @Flag(name = "i", longName = "invited")})
     public void listHomes(ParameterizedContext context) throws Exception
     {
         if (!context.isSender(User.class))
@@ -465,7 +462,6 @@ public class HomeCommand extends ContainerCommand
 
     @Command(names = {"ilist", "invited"},
              desc = "List all players invited to your homes",
-             min = 0, max = 0,
              permDefault = PermDefault.TRUE)
     public void invitedList(CommandContext context)
     {
@@ -499,8 +495,8 @@ public class HomeCommand extends ContainerCommand
     }
 
     @Command(desc = "Invite a user to one of your homes",
-             min = 1, max = 2,
-             usage = "[home] <user>",
+             indexed = {@Grouped(req = false, value = @Indexed("home")),
+                        @Grouped(@Indexed("user"))},
              permDefault = PermDefault.TRUE)
     public void invite(CommandContext context)
     {
@@ -589,8 +585,8 @@ public class HomeCommand extends ContainerCommand
     }
 
     @Command(desc = "Uninvite a player from one of your homes",
-             min = 1, max = 2,
-             usage = "[home] <user>",
+             indexed = {@Grouped(req = false, value = @Indexed("home")),
+                        @Grouped(@Indexed("user"))},
              permDefault = PermDefault.TRUE)
     public void unInvite(CommandContext context)
     {
@@ -678,8 +674,8 @@ public class HomeCommand extends ContainerCommand
 
     @Command(names = {"makeprivate", "setprivate", "private"},
              desc = "Make one of your homes private",
-             usage = "[home]",
-             min = 0, max = 1, permDefault = PermDefault.TRUE)
+             indexed = @Grouped(req = false, value = @Indexed("home")),
+             permDefault = PermDefault.TRUE)
     public void makePrivate(CommandContext context)
     {
         if (context.getSender() instanceof User)
@@ -723,9 +719,8 @@ public class HomeCommand extends ContainerCommand
 
     @Command(names = {"makepublic", "setpublic", "public"},
              desc = "Make one of your homes public",
-             min = 0, max = 1,
-             permDefault = PermDefault.TRUE,
-             usage = "[home]")
+             indexed = @Grouped(req = false, value = @Indexed("home")),
+             permDefault = PermDefault.TRUE)
     public void makePublic(CommandContext context)
     {
         if (context.getSender() instanceof User)

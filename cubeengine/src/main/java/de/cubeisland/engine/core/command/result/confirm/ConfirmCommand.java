@@ -32,12 +32,12 @@ public class ConfirmCommand extends CubeCommand
 
     public ConfirmCommand(Module module, ContextFactory contextFactory, ConfirmManager confirmManager)
     {
-        super(module, "confirm", "Confirm a command", contextFactory);
+        super(module, "confirm", "Confirm a command", contextFactory, null);
         this.confirmManager = confirmManager;
     }
 
     @Override
-    public CommandResult run(CommandContext context) throws Exception
+    public CommandResult run(CommandContext context)
     {
         int pendingConfirmations = confirmManager.countPendingConfirmations(context.getSender());
         if (pendingConfirmations < 1)

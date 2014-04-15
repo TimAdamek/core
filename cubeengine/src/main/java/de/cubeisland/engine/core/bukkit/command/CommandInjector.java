@@ -27,17 +27,18 @@ import org.bukkit.command.Command;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.command.SimpleCommandMap;
 import org.bukkit.command.defaults.VanillaCommand;
+import org.bukkit.help.HelpTopic;
 
 import de.cubeisland.engine.core.bukkit.BukkitCore;
 import de.cubeisland.engine.core.bukkit.BukkitCoreConfiguration;
+import de.cubeisland.engine.core.bukkit.command.WrappedCubeCommandHelpTopic.Factory;
 import de.cubeisland.engine.core.command.CommandSender;
 import de.cubeisland.engine.core.command.CubeCommand;
 import de.cubeisland.engine.core.module.Module;
-
 import gnu.trove.set.hash.THashSet;
 
-import static de.cubeisland.engine.core.contract.Contract.expectNotNull;
 import static de.cubeisland.engine.core.contract.Contract.expect;
+import static de.cubeisland.engine.core.contract.Contract.expectNotNull;
 import static de.cubeisland.engine.core.util.ReflectionUtils.findFirstField;
 import static de.cubeisland.engine.core.util.ReflectionUtils.getFieldValue;
 
@@ -52,6 +53,7 @@ public class CommandInjector
     {
         this.core = core;
         this.commandMapField = findFirstField(core.getServer(), SimpleCommandMap.class);
+        core.getServer().getHelpMap().registerHelpTopicFactory(WrappedCubeCommand.class, new Factory());
     }
 
     @SuppressWarnings("unchecked")
@@ -76,9 +78,10 @@ public class CommandInjector
         expectNotNull(command.getDescription(), command.getName() + " doesn't have a description!");
         expect(!command.getDescription().isEmpty(), command.getName() + " has an empty description!");
 
+        Command newCommand = wrapCommand(command);
         SimpleCommandMap commandMap = getCommandMap();
         Command old = this.getCommand(command.getName());
-        if (old != null && !(old instanceof CubeCommand))
+        if (old != null)
         {
             BukkitCoreConfiguration config = this.core.getConfiguration();
             if (!config.commands.noOverride.contains(old.getLabel().toLowerCase(Locale.ENGLISH)))
@@ -94,13 +97,27 @@ public class CommandInjector
                 {
                     fallbackPrefix = "vanilla";
                 }
-                getKnownCommands().put(fallbackPrefix + ":" + command.getLabel(), command);
-                command.register(commandMap);
+                else if (old instanceof WrappedCubeCommand)
+                {
+                    fallbackPrefix = ((WrappedCubeCommand)old).getCommand().getModule().getId();
+                }
+                getKnownCommands().put(fallbackPrefix + ":" + command.getLabel(), newCommand);
+                newCommand.register(commandMap);
             }// sometimes they are not :(
         }
 
-        commandMap.register(command.getModule().getId(), command);
-        command.onRegister();
+        Command wrappedCommand = wrapCommand(command);
+        commandMap.register(command.getModule().getId(), wrappedCommand);
+    }
+
+    private Command wrapCommand(CubeCommand command)
+    {
+        Command cmd = new WrappedCubeCommand(command);
+        // TODO why got this set: ?
+        //cmd.setAliases(new ArrayList<>(command.getAliases()));
+        //cmd.setUsage(command.getUsage());
+        //cmd.setDescription(command.getDescription());
+        return cmd;
     }
 
     public Command getCommand(String name)
@@ -137,9 +154,18 @@ public class CommandInjector
             if (hasAliases)
             {
                 removed.unregister(getCommandMap());
-                if (removed instanceof CubeCommand)
+            }
+        }
+        Iterator<HelpTopic> it = this.core.getServer().getHelpMap().getHelpTopics().iterator();
+        while (it.hasNext())
+        {
+            HelpTopic topic = it.next();
+            if (topic instanceof WrappedCubeCommandHelpTopic)
+            {
+                WrappedCubeCommandHelpTopic wrapped = (WrappedCubeCommandHelpTopic)topic;
+                if (!getKnownCommands().containsValue(wrapped.getCommand()))
                 {
-                    ((CubeCommand)removed).onRemove();
+                    it.remove();
                 }
             }
         }
@@ -150,9 +176,9 @@ public class CommandInjector
         CubeCommand cubeCommand;
         for (Command command : new THashSet<>(getCommandMap().getCommands()))
         {
-            if (command instanceof CubeCommand)
+            if (command instanceof WrappedCubeCommand)
             {
-                cubeCommand = (CubeCommand)command;
+                cubeCommand = ((WrappedCubeCommand)command).getCommand();
                 if (cubeCommand.getModule() == module)
                 {
                     this.removeCommand(cubeCommand.getLabel(), true);
@@ -178,7 +204,6 @@ public class CommandInjector
             child = it.next();
             if (child.getModule() == module)
             {
-                child.onRemove();
                 it.remove();
             }
             else
@@ -192,7 +217,7 @@ public class CommandInjector
     {
         for (Command command : new THashSet<>(getCommandMap().getCommands()))
         {
-            if (command instanceof CubeCommand)
+            if (command instanceof WrappedCubeCommand)
             {
                 this.removeCommand(command.getLabel(), true);
             }

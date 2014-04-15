@@ -24,16 +24,16 @@ public class TestCommand extends CubeCommand
 
     public TestCommand(Module module, String name, String description, ContextFactory contextFactory)
     {
-        super(module, name, description, contextFactory);
+        super(module, name, description, contextFactory, null);
     }
 
     @Override
-    public CommandResult run(CommandContext context) throws Exception
+    public CommandResult run(CommandContext context)
     {
         return null;
     }
 
     @Override
-    public void help(HelpContext context) throws Exception
+    public void help(HelpContext context)
     {}
 }

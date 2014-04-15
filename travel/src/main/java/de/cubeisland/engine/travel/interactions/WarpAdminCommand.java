@@ -17,7 +17,6 @@
  */
 package de.cubeisland.engine.travel.interactions;
 
-import de.cubeisland.engine.core.command.ArgBounds;
 import de.cubeisland.engine.core.command.CommandContext;
 import de.cubeisland.engine.core.command.CommandResult;
 import de.cubeisland.engine.core.command.ContainerCommand;
@@ -25,9 +24,10 @@ import de.cubeisland.engine.core.command.parameterized.Flag;
 import de.cubeisland.engine.core.command.parameterized.ParameterizedContext;
 import de.cubeisland.engine.core.command.reflected.Alias;
 import de.cubeisland.engine.core.command.reflected.Command;
+import de.cubeisland.engine.core.command.reflected.Grouped;
+import de.cubeisland.engine.core.command.reflected.Indexed;
 import de.cubeisland.engine.core.command.result.confirm.ConfirmResult;
 import de.cubeisland.engine.core.command.sender.ConsoleCommandSender;
-import de.cubeisland.engine.core.permission.PermDefault;
 import de.cubeisland.engine.core.user.User;
 import de.cubeisland.engine.travel.Travel;
 import de.cubeisland.engine.travel.storage.TelePointManager;
@@ -49,12 +49,12 @@ public class WarpAdminCommand extends ContainerCommand
         this.module = module;
         this.tpManager = module.getTelepointManager();
 
-        this.setUsage("[User] [warp]");
-        this.getContextFactory().setArgBounds(new ArgBounds(0, 2));
+        // TODO this.setUsage("[User] [warp]");
+        // TODO this.getContextFactory().setArgBounds(new ArgBounds(0, 2));
     }
 
     @Override
-    public CommandResult run(CommandContext context) throws Exception
+    public CommandResult run(CommandContext context)
     {
         context.sendTranslated(NEGATIVE, "This is not a command on it's own.");
         context.sendTranslated(NEUTRAL, "If you want to teleport to a players warp: {text:/warp <user>}");
@@ -62,13 +62,11 @@ public class WarpAdminCommand extends ContainerCommand
         return null;
     }
 
-    @Alias(names = {
-        "clearwarps"
-    })
+    @Alias(names = {"clearwarps"})
     @Command(desc = "Clear all warps (of a player)", flags = {
         @Flag(name = "pub", longName = "public"),
-        @Flag(name = "priv", longName = "Private")
-    }, permDefault =  PermDefault.OP, max = 1, usage = " <user> <-public> <-Private>")
+        @Flag(name = "priv", longName = "private")},
+             indexed = @Grouped(req = false, value = @Indexed("user")))
     public ConfirmResult clear(final ParameterizedContext context)
     {
         if (this.module.getConfig().clearOnlyFromConsole && !(context.getSender() instanceof ConsoleCommandSender))
@@ -160,8 +158,8 @@ public class WarpAdminCommand extends ContainerCommand
         }, context);
     }
 
-    @Command(names = {"privae", "makeprivate"}, permDefault = PermDefault.OP,
-             desc = "Make a players warp private", min = 1, max = 1, usage = " owner:home")
+    @Command(names = {"privae", "makeprivate"}, desc = "Make a players warp private",
+             indexed = @Grouped(@Indexed("<owner>:<home>")))
     public void makePrivate(CommandContext context)
     {
         Warp warp;
@@ -180,8 +178,8 @@ public class WarpAdminCommand extends ContainerCommand
         context.sendTranslated(POSITIVE, "{name#warp} is now private", context.getString(0));
     }
 
-    @Command(names = {"public"}, permDefault =  PermDefault.OP,
-             desc = "Make a users warp public", min = 1, max = 1, usage = " owner:home")
+    @Command(names = "public", desc = "Make a users warp public",
+             indexed = @Grouped(@Indexed("<owner>:<home>")))
     public void makePublic(CommandContext context)
     {
         Warp warp;

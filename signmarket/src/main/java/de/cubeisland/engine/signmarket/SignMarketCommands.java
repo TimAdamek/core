@@ -18,6 +18,7 @@
 package de.cubeisland.engine.signmarket;
 
 import java.util.Arrays;
+import java.util.HashSet;
 
 import de.cubeisland.engine.core.command.ContainerCommand;
 import de.cubeisland.engine.core.command.parameterized.ParameterizedContext;
@@ -27,13 +28,16 @@ import de.cubeisland.engine.core.user.User;
 
 import static de.cubeisland.engine.core.util.formatter.MessageType.*;
 
+import static java.util.Arrays.asList;
+
 public class SignMarketCommands extends ContainerCommand
 {
     private final Signmarket module;
 
     public SignMarketCommands(Signmarket module)
     {
-        super(module, "marketsign", "MarketSign-Commands", Arrays.asList("signmarket","market"));
+        super(module, "marketsign", "MarketSign-Commands");
+        this.setAliases(new HashSet<>(asList("signmarket", "market")));
         this.module = module;
     }
 

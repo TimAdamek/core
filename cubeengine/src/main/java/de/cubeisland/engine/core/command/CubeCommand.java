@@ -17,10 +17,11 @@
  */
 package de.cubeisland.engine.core.command;
 
-import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
@@ -28,72 +29,131 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.Stack;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutionException;
 
-import org.bukkit.command.Command;
-import org.bukkit.entity.Player;
+import org.bukkit.permissions.Permissible;
 
-import de.cubeisland.engine.core.Core;
-import de.cubeisland.engine.core.CubeEngine;
-import de.cubeisland.engine.core.command.exception.CommandException;
-import de.cubeisland.engine.core.command.exception.IncorrectUsageException;
-import de.cubeisland.engine.core.command.exception.MissingParameterException;
-import de.cubeisland.engine.core.command.exception.PermissionDeniedException;
-import de.cubeisland.engine.core.command.parameterized.ParameterizedCommand;
-import de.cubeisland.engine.core.command.sender.BlockCommandSender;
-import de.cubeisland.engine.core.command.sender.WrappedCommandSender;
+import de.cubeisland.engine.core.command.parameterized.CommandParameterIndexed;
 import de.cubeisland.engine.core.module.Module;
-import de.cubeisland.engine.core.permission.PermDefault;
 import de.cubeisland.engine.core.permission.Permission;
 import de.cubeisland.engine.core.user.User;
-import de.cubeisland.engine.core.util.ChatFormat;
 import de.cubeisland.engine.core.util.StringUtils;
-import gnu.trove.map.hash.THashMap;
-import gnu.trove.set.hash.THashSet;
 
 import static de.cubeisland.engine.core.contract.Contract.expectNotNull;
-import static de.cubeisland.engine.core.util.StringUtils.startsWithIgnoreCase;
-import static de.cubeisland.engine.core.util.formatter.MessageType.*;
+import static de.cubeisland.engine.core.permission.PermDefault.OP;
+import static de.cubeisland.engine.core.util.ChatFormat.*;
+import static de.cubeisland.engine.core.util.StringUtils.implode;
+import static de.cubeisland.engine.core.util.formatter.MessageType.NEUTRAL;
+import static de.cubeisland.engine.core.util.formatter.MessageType.NONE;
 
 /**
  * This class is the base for all of our commands
  * it implements the execute() method which provides error handling and calls the
  * run() method which should be implemented by the extending classes
  */
-public abstract class CubeCommand extends Command
+public abstract class CubeCommand
 {
-    private CubeCommand parent;
     private final Module module;
+    private final String name;
+    private String label;
+    private final Set<String> aliases;
+    private String description;
+
+    private CubeCommand parent;
     private final Map<String, CubeCommand> children;
     protected final List<String> childrenAliases;
     private final ContextFactory contextFactory;
     private boolean loggable;
     private boolean asynchronous = false;
-    private boolean generatePermission;
-    private PermDefault generatedPermissionDefault;
+    private final Permission permission;
 
-    public CubeCommand(Module module, String name, String description, ContextFactory contextFactory)
-    {
-        this(module, name, description, "", new ArrayList<String>(0), contextFactory);
-    }
+    private final Map<Locale, String> usages = new HashMap<>();
+    private boolean permRegistered = false;
 
-    public CubeCommand(Module module, String name, String description, String usage, List<String> aliases, ContextFactory contextFactory)
+    public CubeCommand(Module module, String name, String description, ContextFactory contextFactory, Permission permission)
     {
-        super(name, description, usage.trim(), aliases);
         if ("?".equals(name))
         {
             throw new IllegalArgumentException("Invalid command name: " + name);
         }
-        this.parent = null;
         this.module = module;
+        this.name = name;
+        this.aliases = new HashSet<>();
+        this.description = description;
+        
         this.contextFactory = contextFactory;
 
-        this.children = new THashMap<>();
+        this.children = new HashMap<>();
         this.childrenAliases = new ArrayList<>();
         this.loggable = true;
-        this.generatePermission = false;
-        this.generatedPermissionDefault = PermDefault.DEFAULT;
+        this.permission = permission;
+    }
+
+    public CubeCommand(Module module, String name, String description, BasicContextFactory cFactory)
+    {
+        this(module, name, description, cFactory, Permission.detachedPermission(name, OP));
+    }
+
+    public String getName()
+    {
+        return name;
+    }
+
+    public String getLabel()
+    {
+        return label;
+    }
+
+    public void setLabel(String label)
+    {
+        this.label = label == null ? this.name : label;
+    }
+
+    public String getDescription()
+    {
+        return description;
+    }
+
+    public void setDescription(String description)
+    {
+        this.description = description;
+    }
+
+    public boolean isAuthorized(CommandSender sender)
+    {
+        return this.permission == null || sender == null || this.permission.isAuthorized(sender);
+    }
+
+    public Permission getPermission()
+    {
+        return permission;
+    }
+
+    public void registerPermission()
+    {
+        if (this.permission == null)
+        {
+            return;
+        }
+        if (permRegistered)
+        {
+            this.module.getCore().getPermissionManager().removePermission(module, this.permission);
+        }
+        Stack<String> cmds = new Stack<>();
+        CubeCommand cmd = this;
+        while ((cmd = cmd.getParent()) != null)
+        {
+            cmds.push(cmd.getName());
+        }
+
+        Permission perm = this.getModule().getBasePermission().childWildcard("command");
+
+        while (!cmds.isEmpty())
+        {
+            perm = perm.childWildcard(cmds.pop());
+        }
+        this.permission.setParent(perm);
+        this.module.getCore().getPermissionManager().registerPermission(module, this.permission);
+        this.permRegistered = true;
     }
 
     public boolean isAsynchronous()
@@ -106,7 +166,6 @@ public abstract class CubeCommand extends Command
         this.asynchronous = asynchronous;
     }
 
-
     public void setLoggable(boolean state)
     {
         this.loggable = state;
@@ -117,91 +176,9 @@ public abstract class CubeCommand extends Command
         return this.loggable;
     }
 
-    public boolean isGeneratePermission()
-    {
-        return generatePermission;
-    }
-
-    public void setGeneratePermission(boolean generatePermission)
-    {
-        this.generatePermission = generatePermission;
-    }
-
-    public PermDefault getGeneratedPermissionDefault()
-    {
-        return generatedPermissionDefault;
-    }
-
-    public void setGeneratedPermissionDefault(PermDefault generatedPermissionDefault)
-    {
-        this.setGeneratePermission(true);
-        this.generatedPermissionDefault = generatedPermissionDefault;
-    }
-
     protected void registerAlias(String[] names, String[] parents)
     {
         this.registerAlias(names, parents, "", "");
-    }
-
-    @Override
-    public void setPermission(String permission)
-    {
-        this.generatePermission = false;
-        super.setPermission(permission);
-    }
-
-    protected Permission generatePermissionNode()
-    {
-        Permission commandBase = this.getModule().getBasePermission().childWildcard("command");
-        LinkedList<String> cmds = new LinkedList<>();
-        CubeCommand cmd = this;
-        do
-        {
-            cmds.addFirst(cmd.getName());
-        }
-        while ((cmd = cmd.getParent()) != null);
-        Permission perm = commandBase;
-        Iterator<String> it = cmds.iterator();
-        while (it.hasNext())
-        {
-            String permString = it.next();
-            if (it.hasNext())
-            {
-                perm = perm.childWildcard(permString);
-            }
-            else
-            {
-                perm = perm.child(permString, this.getGeneratedPermissionDefault());
-            }
-        }
-        return perm;
-    }
-
-    public void updateGeneratedPermission()
-    {
-        if (this.isGeneratePermission())
-        {
-            PermDefault def = null;
-            String node = this.getPermission();
-            if (node != null)
-            {
-                def = this.getModule().getCore().getPermissionManager().getDefaultFor(node);
-            }
-            if (def == null)
-            {
-                def = this.getGeneratedPermissionDefault();
-            }
-            this.setGeneratedPermission(def);
-        }
-    }
-
-    public void setGeneratedPermission(PermDefault def)
-    {
-        this.generatePermission = true;
-        this.setGeneratedPermissionDefault(def);
-        Permission perm = this.generatePermissionNode();
-        super.setPermission(perm.getName());
-        this.getModule().getCore().getPermissionManager().registerPermission(this.getModule(), perm);
     }
 
     protected void registerAlias(String[] names, String[] parents, String prefix, String suffix)
@@ -210,10 +187,10 @@ public abstract class CubeCommand extends Command
         {
             throw new IllegalArgumentException("You have to specify at least 1 name!");
         }
-        List<String> aliases = Collections.emptyList();
+        Set<String> aliases = Collections.emptySet();
         if (names.length > 1)
         {
-            aliases = new ArrayList<>(names.length - 1);
+            aliases = new HashSet<>(names.length - 1);
             aliases.addAll(Arrays.asList(names).subList(1, names.length));
         }
         this.getModule().getCore().getCommandManager().registerCommand(new AliasCommand(this, names[0], aliases, prefix, suffix), parents);
@@ -240,7 +217,7 @@ public abstract class CubeCommand extends Command
         }
         while ((cmd = cmd.getParent()) != null);
 
-        return StringUtils.implode(delimiter, cmds);
+        return implode(delimiter, cmds);
     }
 
     private static String replaceSemiOptionalArgs(CommandSender sender, String usage)
@@ -255,39 +232,108 @@ public abstract class CubeCommand extends Command
         }
     }
 
-    @Override
-    public CubeCommand setAliases(List<String> aliases)
+    public CubeCommand setAliases(Set<String> aliases)
     {
-        super.setAliases(aliases);
+        synchronized (this.aliases)
+        {
+            this.aliases.clear();
+            this.aliases.addAll(aliases);
+        }
         return this;
     }
-
-    @Override
-    public CubeCommand setPermissionMessage(String permissionMessage)
+    
+    public Set<String> getAliases()
     {
-        super.setPermissionMessage(permissionMessage);
-        return this;
+        synchronized (this.aliases)
+        {
+            return new HashSet<>(this.aliases);
+        }
     }
 
-    @Override
-    public CubeCommand setDescription(String description)
-    {
-        super.setDescription(description);
-        return this;
-    }
-
-    @Override
-    public CubeCommand setUsage(String usage)
-    {
-        super.setUsage(usage);
-        return this;
-    }
-
-    @Override
     public String getUsage()
     {
-        return "/" + this.implodeCommandParentNames(" ") + " " + this.getModule().getCore().getI18n().translate(this.usageMessage);
+        return "/" + this.implodeCommandParentNames(" ") + " " + this.getUsage(this.module.getCore().getI18n().getDefaultLanguage().getLocale(), null);
     }
+
+    public final String getUsage(Locale locale, Permissible permissible)
+    {
+        String usage = this.usages.get(locale);
+        if (usage != null)
+        {
+            return usage;
+        }
+        usage = this.getUsage0(locale, permissible);
+        this.usages.put(locale, usage);
+        return usage;
+    }
+
+    protected String getUsage0(Locale locale, Permissible permissible)
+    {
+        StringBuilder sb = new StringBuilder();
+        int inGroup = 0;
+        for (CommandParameterIndexed indexedParam : this.contextFactory.getIndexedParameters())
+        {
+            if (indexedParam.getCount() == 1 || indexedParam.getCount() < 0)
+            {
+                sb.append(convertLabel(indexedParam.isGroupRequired(), StringUtils.implode("|", convertLabels(indexedParam))));
+                sb.append(' ');
+                inGroup = 0;
+            }
+            else if (indexedParam.getCount() > 1)
+            {
+                sb.append(indexedParam.isGroupRequired() ? '<' : '[');
+                sb.append(convertLabel(indexedParam.isRequired(), StringUtils.implode("|", convertLabels(indexedParam))));
+                sb.append(' ');
+                inGroup = indexedParam.getCount() - 1;
+            }
+            else if (indexedParam.getCount() == 0)
+            {
+                sb.append(convertLabel(indexedParam.isRequired(), StringUtils.implode("|", convertLabels(indexedParam))));
+                inGroup--;
+                if (inGroup == 0)
+                {
+                    sb.append(indexedParam.isGroupRequired() ? '>' : ']');
+                }
+                sb.append(' ');
+            }
+        }
+        return sb.toString().trim();
+    }
+
+    private String[] convertLabels(CommandParameterIndexed indexedParam)
+    {
+        String[] labels = indexedParam.getLabels().clone();
+        String[] rawLabels = indexedParam.getLabels();
+        for (int i = 0; i < rawLabels.length; i++)
+        {
+            if (rawLabels.length == 1)
+            {
+                labels[i] = convertLabel(true, "!" + rawLabels[i]);
+            }
+            else
+            {
+                labels[i] = convertLabel(true, rawLabels[i]);
+            }
+        }
+        return labels;
+    }
+
+    private String convertLabel(boolean req, String label)
+    {
+        if (label.startsWith("!"))
+        {
+            return label.substring(1);
+        }
+        else if (req)
+        {
+            return "<" + label + ">";
+        }
+        else
+        {
+            return "[" + label + "]";
+        }
+    }
+
 
     /**
      * This overload returns the usage translated for the given CommandSender
@@ -297,31 +343,23 @@ public abstract class CubeCommand extends Command
      */
     public String getUsage(CommandSender sender)
     {
-        String usage = super.getUsage();
-        if (!usage.isEmpty())
-        {
-            usage = sender.getTranslation(NONE, usage);
-        }
+        String usage = this.getUsage(sender.getLocale(), sender);
         return (sender instanceof User ? "/" : "") + this.implodeCommandParentNames(" ") + ' ' + replaceSemiOptionalArgs(sender, usage);
     }
 
-    /**
-     * This overload returns the usage translated for the given CommandContext
-     * using the correct labels
-     *
-     * @param context the command context
-     * @return the usage string
-     */
+        /**
+         * This overload returns the usage translated for the given CommandContext
+         * using the correct labels
+         *
+         * @param context the command context
+         * @return the usage string
+         */
+
     public String getUsage(CommandContext context)
     {
         final CommandSender sender = context.getSender();
-        String usage = super.getUsage();
-        if (!usage.isEmpty())
-        {
-            usage = sender.getTranslation(NONE, usage);
-        }
-        return (sender instanceof User ? "/" : "") + StringUtils
-            .implode(" ", context.getLabels()) + ' ' + replaceSemiOptionalArgs(sender, usage);
+        String usage = this.getUsage(sender.getLocale(), context.getSender());
+        return (sender instanceof User ? "/" : "") + implode(" ", context.getLabels()) + ' ' + replaceSemiOptionalArgs(sender, usage);
     }
 
     /**
@@ -334,12 +372,8 @@ public abstract class CubeCommand extends Command
      */
     public String getUsage(CommandSender sender, List<String> parentLabels)
     {
-        String usage = super.getUsage();
-        if (!usage.isEmpty())
-        {
-            usage = sender.getTranslation(NONE, usage);
-        }
-        return sender instanceof User ? "/" : "" + StringUtils.implode(" ", parentLabels) + ' ' + this.getName() + ' ' + usage;
+        String usage = this.getUsage(sender.getLocale(), sender);
+        return sender instanceof User ? "/" : "" + implode(" ", parentLabels) + ' ' + name + ' ' + usage;
     }
 
     /**
@@ -348,7 +382,7 @@ public abstract class CubeCommand extends Command
      * @param name the child name
      * @return the child or null if not found
      */
-    public CubeCommand getChild(String name)
+    public final CubeCommand getChild(String name)
     {
         if (name == null)
         {
@@ -363,7 +397,7 @@ public abstract class CubeCommand extends Command
      *
      * @param command the command to add
      */
-    public void addChild(CubeCommand command)
+    public final void addChild(CubeCommand command)
     {
         expectNotNull(command, "The command must not be null!");
 
@@ -379,7 +413,6 @@ public abstract class CubeCommand extends Command
 
         this.children.put(command.getName(), command);
         command.parent = this;
-        this.onRegister();
         for (String alias : command.getAliases())
         {
             alias = alias.toLowerCase(Locale.ENGLISH);
@@ -394,7 +427,7 @@ public abstract class CubeCommand extends Command
      * @param name the name to check for
      * @return true if a matching command was found
      */
-    public boolean hasChild(String name)
+    public final boolean hasChild(String name)
     {
         return name != null && this.children.containsKey(name.toLowerCase());
     }
@@ -404,7 +437,7 @@ public abstract class CubeCommand extends Command
      *
      * @return true if that is the case
      */
-    public boolean hasChildren()
+    public final boolean hasChildren()
     {
         return !this.children.isEmpty();
     }
@@ -414,19 +447,9 @@ public abstract class CubeCommand extends Command
      *
      * @return a Set of children
      */
-    public Set<CubeCommand> getChildren()
+    public final Set<CubeCommand> getChildren()
     {
-        return new THashSet<>(this.children.values());
-    }
-
-    /**
-     * Returns a Set of the children's names
-     *
-     * @return a set of children's names
-     */
-    public Set<String> getChildrenNames()
-    {
-        return new THashSet<>(this.children.keySet());
+        return new HashSet<>(this.children.values());
     }
 
     /**
@@ -434,7 +457,7 @@ public abstract class CubeCommand extends Command
      *
      * @param name the name fo the child
      */
-    public void removeChild(String name)
+    public final void removeChild(String name)
     {
         CubeCommand cmd = this.getChild(name);
         Iterator<Map.Entry<String, CubeCommand>> it = this.children.entrySet().iterator();
@@ -447,240 +470,13 @@ public abstract class CubeCommand extends Command
             }
         }
         this.childrenAliases.removeAll(cmd.getAliases());
-        cmd.onRemove();
         cmd.parent = null;
     }
 
-    private static CommandSender wrapSender(Core core, org.bukkit.command.CommandSender bukkitSender)
+    public List<String> tabComplete(CommandContext context)
     {
-        if (bukkitSender instanceof CommandSender)
-        {
-            return (CommandSender)bukkitSender;
-        }
-        else if (bukkitSender instanceof Player)
-        {
-            return core.getUserManager().getExactUser(((Player)bukkitSender).getUniqueId());
-        }
-        else if (bukkitSender instanceof org.bukkit.command.ConsoleCommandSender)
-        {
-            return core.getCommandManager().getConsoleSender();
-        }
-        else if (bukkitSender instanceof org.bukkit.command.BlockCommandSender)
-        {
-            return new BlockCommandSender(core, (org.bukkit.command.BlockCommandSender)bukkitSender);
-        }
-        else
-        {
-            return new WrappedCommandSender(core, bukkitSender);
-        }
-    }
-
-    /**
-     * This is the entry point from Bukkit into our own command handling code
-     *
-     * @param bukkitSender the Bukkit command sender which will be wrapped
-     * @param label the command label
-     * @param args the command arguments
-     * @return true if the command succeeded
-     */
-    @Override
-    public final boolean execute(org.bukkit.command.CommandSender bukkitSender, String label, String[] args)
-    {
-        CommandSender sender = wrapSender(this.getModule().getCore(), bukkitSender);
-        this.getModule().getCore().getCommandManager().logExecution(sender, this, args);
-        return this.execute(sender, args, label, new Stack<String>());
-    }
-
-    /**
-     * This method should only ever be overwritten in really special cases!
-     * One example for this: the AliasCommand
-     *
-     * @param sender the CE command server
-     * @param args the args array
-     * @param label the command label
-     * @param labels the label stack
-     * @return true on success
-     */
-    protected boolean execute(final CommandSender sender, String[] args, String label, Stack<String> labels)
-    {
-        if (!this.testPermissionSilent(sender))
-        {
-            this.permissionDenied(sender);
-            return true;
-        }
-        labels.push(label);
-        if (args.length > 0)
-        {
-            if ("?".equals(args[0]))
-            {
-                HelpContext ctx = new HelpContext(this, sender, labels, args);
-                try
-                {
-                    this.help(ctx);
-                }
-                catch (Exception e)
-                {
-                    this.handleCommandException(ctx.getSender(), e);
-                }
-                return true;
-            }
-            CubeCommand child = this.getChild(args[0]);
-            if (child != null)
-            {
-                return child.execute(sender, Arrays.copyOfRange(args, 1, args.length), args[0], labels);
-            }
-        }
-        try
-        {
-            final CommandContext ctx = this.getContextFactory().parse(this, sender, labels, args);
-            if (this.isAsynchronous())
-            {
-                ctx.getCore().getTaskManager().getThreadFactory().newThread(new Runnable()
-                {
-                    @Override
-                    public void run()
-                    {
-                        run0(ctx);
-                    }
-                }).start();
-            }
-            else
-            {
-                this.run0(ctx);
-            }
-        }
-        catch (CommandException e)
-        {
-            this.handleCommandException(sender, e);
-        }
-
-        return true;
-    }
-
-    private void run0(CommandContext ctx)
-    {
-        try
-        {
-            CommandResult result = this.run(ctx);
-            if (result != null)
-            {
-                result.show(ctx);
-            }
-        }
-        catch (Exception e)
-        {
-            handleCommandException(ctx.getSender(), e);
-        }
-    }
-
-    private void permissionDenied(CommandSender sender)
-    {
-        sender.sendTranslated(NEGATIVE, "You're not allowed to do this!");
-        sender.sendTranslated(NEGATIVE, "Contact an administrator if you think this is a mistake!");
-    }
-
-    private void handleCommandException(final CommandSender sender, Throwable t)
-    {
-        if (!CubeEngine.isMainThread())
-        {
-            final Throwable tmp = t;
-            sender.getCore().getTaskManager().callSync(new Callable<Void>()
-            {
-                @Override
-                public Void call() throws Exception
-                {
-                    handleCommandException(sender, tmp);
-                    return null;
-                }
-            });
-            return;
-        }
-        if (t instanceof InvocationTargetException || t instanceof ExecutionException)
-        {
-            t = t.getCause();
-        }
-        if (t instanceof MissingParameterException)
-        {
-            sender.sendTranslated(NEGATIVE, "The parameter {input#parameter} is missing!", t.getMessage());
-        }
-        else if (t instanceof IncorrectUsageException)
-        {
-            sender.sendMessage(t.getMessage());
-            sender.sendTranslated(NEUTRAL, "Proper usage: {input#usage:color=white}", this.getUsage(sender));
-        }
-        else if (t instanceof PermissionDeniedException)
-        {
-            this.permissionDenied(sender);
-        }
-        else
-        {
-            sender.sendTranslated(CRITICAL, "An unknown error occurred while executing this command!");
-            sender.sendTranslated(CRITICAL, "Please report this error to an administrator.");
-            this.module.getLog().debug(t, t.getLocalizedMessage());
-        }
-    }
-
-    private List<String> tabCompleteFallback(org.bukkit.command.CommandSender bukkitSender, String alias, String[] args) throws IllegalArgumentException
-    {
-        return super.tabComplete(bukkitSender, alias, args);
-    }
-
-    private static final int TAB_LIMIT_THRESHOLD = 50;
-
-    @Override
-    public final List<String> tabComplete(org.bukkit.command.CommandSender bukkitSender, String alias, String[] args) throws IllegalArgumentException
-    {
-        CubeCommand completer = this;
-        if (args.length > 0 && !args[0].isEmpty())
-        {
-            CubeCommand child = this.getChild(args[0]);
-            if (child != null)
-            {
-                args = Arrays.copyOfRange(args, 1, args.length);
-                completer = child;
-            }
-        }
-        CommandSender sender = wrapSender(this.getModule().getCore(), bukkitSender);
-
-        this.getModule().getCore().getCommandManager().logTabCompletion(sender, this, args);
-        List<String> result = completer.tabComplete(sender, alias, args);
-        if (result == null)
-        {
-            result = completer.tabCompleteFallback(bukkitSender, alias, args);
-        }
-        final int max = this.getModule().getCore().getConfiguration().commands.maxTabCompleteOffers;
-        if (result.size() > max)
-        {
-            if (StringUtils.implode(", ", result).length() < TAB_LIMIT_THRESHOLD)
-            {
-                return result;
-            }
-            result = result.subList(0, max);
-        }
-        return result;
-    }
-
-    public List<String> tabComplete(CommandSender sender, String label, String[] args)
-    {
-        if (this.hasChildren() && args.length == 1 && !((this instanceof ParameterizedCommand) && !args[0].isEmpty() && args[0].charAt(0) == '-'))
-        {
-            List<String> actions = new ArrayList<>();
-            String token = args[0].toLowerCase(Locale.ENGLISH);
-
-            Set<CubeCommand> names = this.getChildren();
-            names.removeAll(this.childrenAliases);
-            for (CubeCommand child : names)
-            {
-                if (startsWithIgnoreCase(child.getName(), token) && child.testPermissionSilent(sender))
-                {
-                    actions.add(child.getName());
-                }
-            }
-            Collections.sort(actions, String.CASE_INSENSITIVE_ORDER);
-
-            return actions;
-        }
         return null;
+        // TODO indexed Completers
     }
 
     /**
@@ -707,17 +503,15 @@ public abstract class CubeCommand extends Command
      * This method handles the command execution
      *
      * @param context The CommandContext containing all the necessary information
-     * @throws Exception if an error occurs
      */
-    public abstract CommandResult run(CommandContext context) throws Exception;
+    public abstract CommandResult run(CommandContext context);
 
     /**
      * This method is called if the help page of this command was requested by the ?-action
      *
      * @param context The CommandContext containing all the necessary information
-     * @throws Exception if an error occurs
      */
-    public void help(HelpContext context) throws Exception
+    public void help(HelpContext context)
     {
         context.sendTranslated(NONE, "{text:Description:color=GREY}: {input}", this.getDescription());
         context.sendTranslated(NONE, "{text:Usage:color=GREY}: {input}", this.getUsage(context));
@@ -731,21 +525,13 @@ public abstract class CubeCommand extends Command
             final CommandSender sender = context.getSender();
             for (CubeCommand command : context.getCommand().getChildren())
             {
-                if (command.testPermissionSilent(sender))
+                if (command.isAuthorized(sender))
                 {
-                    context.sendMessage(ChatFormat.YELLOW + command.getName() + ChatFormat.WHITE + ": " + ChatFormat.GREY + sender.getTranslation(
-                        NONE, command
-                        .getDescription()));
+                    context.sendMessage(YELLOW + command.getName() + WHITE + ": " + GREY + sender.getTranslation(NONE, command.getDescription()));
                 }
             }
         }
         context.sendMessage(" ");
         context.sendTranslated(NONE, "{text:Detailed help:color=GREY}: {input#link:color=INDIGO}", "http://engine.cubeisland.de/c/" + this.getModule().getId() + "/" + this.implodeCommandParentNames("/"));
     }
-
-    public void onRegister()
-    {}
-
-    public void onRemove()
-    {}
 }

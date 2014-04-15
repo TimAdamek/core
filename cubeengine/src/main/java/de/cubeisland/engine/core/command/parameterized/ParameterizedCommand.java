@@ -18,26 +18,26 @@
 package de.cubeisland.engine.core.command.parameterized;
 
 import java.util.ArrayList;
-import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map.Entry;
 
-import de.cubeisland.engine.core.command.CommandSender;
+import org.bukkit.permissions.Permissible;
+
+import de.cubeisland.engine.core.command.CommandContext;
 import de.cubeisland.engine.core.command.CubeCommand;
 import de.cubeisland.engine.core.module.Module;
+import de.cubeisland.engine.core.permission.Permission;
 
+import static de.cubeisland.engine.core.command.parameterized.ParameterizedTabContext.Type.*;
 import static de.cubeisland.engine.core.util.StringUtils.startsWithIgnoreCase;
 
 public abstract class ParameterizedCommand extends CubeCommand
 {
-    protected ParameterizedCommand(Module module, String name, String description, ParameterizedContextFactory parser)
+    protected ParameterizedCommand(Module module, String name, String description, ParameterizedContextFactory parser, Permission permission)
     {
-        super(module, name, description, parser);
-    }
-
-    protected ParameterizedCommand(Module module, String name, String description, String usageMessage, List<String> aliases, ParameterizedContextFactory parser)
-    {
-        super(module, name, description, usageMessage, aliases, parser);
+        super(module, name, description, parser, permission);
     }
 
     @Override
@@ -55,76 +55,145 @@ public abstract class ParameterizedCommand extends CubeCommand
     {
         this.getContextFactory().addFlag(flag);
     }
-
-    @Override
-    public List<String> tabComplete(CommandSender sender, String label, String[] args)
+    
+    public List<String> tabComplete(ParameterizedTabContext context)
     {
-        List<String> result = super.tabComplete(sender, label, args);
-        if (result != null)
-        {
-            return result;
-        }
-        if (args.length == 0)
+        if (context.last == ParameterizedTabContext.Type.NOTHING)
         {
             return null;
         }
-        String token = args[args.length - 1];
-        final ParameterizedContextFactory contextFactory = this.getContextFactory();
-        if (args.length >= 2)
+        final ParameterizedContextFactory cFactory = this.getContextFactory();
+        if (context.last == PARAM_VALUE)
         {
-            CommandParameter param = contextFactory.getParameter(args[args.length - 2]);
-            if (param != null)
-            {
-                Completer completer = param.getCompleter();
-                if (completer != null)
-                {
-                    result = completer.complete(sender, token);
-                }
-            }
+            return tabCompleteParamValue(context, cFactory);
         }
+        List<String> result = new ArrayList<>();
+        List<String> args = context.getArgs();
+        String last = args.get(args.size() - 1);
+        if (context.last == FLAG_OR_INDEXED)
+        {
+            tabCompleteFlags(context, cFactory, result, last);
+            tabCompleteIndexed(context, cFactory, result, args.size() - 1, last);
+        }
+        else if (context.last == INDEXED_OR_PARAM)
+        {
+            tabCompleteIndexed(context, cFactory, result, args.size() - 1, last);
+            tabCompleteParam(context, cFactory, result, last);
+        }
+        else if (context.last == ANY)
+        {
+            tabCompleteIndexed(context, cFactory, result, args.size() - 1, last);
+            tabCompleteParam(context, cFactory, result, last);
+            tabCompleteFlags(context, cFactory, result, last);
+        }
+        return result;
+    }
 
-        final boolean mayBeFlag = (token.length() > 0 && token.charAt(0) == '-');
-        if (result == null && !mayBeFlag)
+    private List<String> tabCompleteParamValue(ParameterizedTabContext context, ParameterizedContextFactory cFactory)
+    {
+        Iterator<Entry<String, String>> iterator = context.getParams().entrySet().iterator();
+        Entry<String, String> lastParameter;
+        do
         {
-            List<String> params = new ArrayList<>(0);
-            for (CommandParameter entry : contextFactory.getParameters())
-            {
-                if (startsWithIgnoreCase(entry.getName(), token))
-                {
-                    params.add(entry.getName());
-                }
-            }
-            if (!params.isEmpty())
-            {
-                result = params;
-            }
+            lastParameter = iterator.next();
         }
-        if (result == null && mayBeFlag)
+        while (iterator.hasNext());
+        Completer completer = cFactory.getParameter(lastParameter.getKey()).getCompleter();
+        if (completer != null)
         {
-            List<String> flags = new ArrayList<>();
-            if (!token.isEmpty() && token.charAt(0) == '-')
+            return completer.complete(context, lastParameter.getValue());
+        }
+        return null; // TODO check if bukkit wont do player tab completion
+    }
+
+    private void tabCompleteParam(ParameterizedTabContext context, ParameterizedContextFactory cFactory, List<String> result, String last)
+    {
+        for (CommandParameter parameter : cFactory.getParameters())
+        {
+            if (!context.hasParam(parameter.getName()))
             {
-                token = token.substring(1).toLowerCase(Locale.ENGLISH);
-                for (CommandFlag flag : contextFactory.getFlags())
+                if (startsWithIgnoreCase(parameter.getName(), last))
                 {
-                    final String name = flag.getLongName().toLowerCase(Locale.ENGLISH);
-                    if (startsWithIgnoreCase(name, token))
+                    result.add(parameter.getName());
+                }
+                if (!last.isEmpty())
+                {
+                    for (String alias : parameter.getAliases())
                     {
-                        flags.add("-" + name);
+                        if (alias.length() > 2 && startsWithIgnoreCase(alias, last))
+                        {
+                            result.add(alias);
+                        }
                     }
                 }
-                if (!flags.isEmpty())
+            }
+        }
+    }
+
+    private void tabCompleteIndexed(ParameterizedTabContext context, ParameterizedContextFactory cFactory,
+                                    List<String> result, int index, String last)
+    {
+        CommandParameterIndexed indexed = cFactory.getIndexed(index);
+        if (indexed != null)
+        {
+            Completer indexedCompleter = indexed.getCompleter();
+            if (indexedCompleter != null)
+            {
+                result.addAll(indexedCompleter.complete(context, last));
+            }
+        }
+    }
+
+    private void tabCompleteFlags(ParameterizedTabContext context, ParameterizedContextFactory cFactory, List<String> result, String last)
+    {
+        if (!last.isEmpty())
+        {
+            last = last.substring(1);
+        }
+        for (CommandFlag commandFlag : cFactory.getFlags())
+        {
+            if (!context.hasFlag(commandFlag.getName()) && startsWithIgnoreCase(commandFlag.getLongName(), last))
+            {
+                result.add("-" + commandFlag.getLongName());
+            }
+        }
+    }
+
+    @Override
+    public final List<String> tabComplete(CommandContext context)
+    {
+        if (context instanceof ParameterizedTabContext)
+        {
+            return this.tabComplete((ParameterizedTabContext)context);
+        }
+        return super.tabComplete(context);
+    }
+
+    @Override
+    protected String getUsage0(Locale locale, Permissible permissible)
+    {
+        StringBuilder sb = new StringBuilder(super.getUsage0(locale, permissible)).append(' ');
+        for (CommandParameter param : this.getContextFactory().getParameters())
+        {
+            if (param.checkPermission(permissible))
+            {
+                if (param.isRequired())
                 {
-                    result = flags;
+                    sb.append('<').append(param.getName()).append(" <").append(param.getLabel()).append(">> ");
+                }
+                else
+                {
+                    sb.append('[').append(param.getName()).append(" <").append(param.getLabel()).append(">] ");
                 }
             }
         }
-
-        if (result != null)
+        for (CommandFlag flag : this.getContextFactory().getFlags())
         {
-            Collections.sort(result, String.CASE_INSENSITIVE_ORDER);
+            if (flag.checkPermission(permissible))
+            {
+                sb.append("[-").append(flag.getLongName()).append("] ");
+            }
         }
-
-        return result;
+        return sb.toString().trim();
     }
 }

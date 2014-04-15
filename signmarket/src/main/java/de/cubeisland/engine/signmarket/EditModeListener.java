@@ -34,13 +34,13 @@ import org.bukkit.inventory.ItemStack;
 
 import de.cubeisland.engine.core.command.CommandContext;
 import de.cubeisland.engine.core.command.CommandResult;
-import de.cubeisland.engine.core.command.CommandSender;
 import de.cubeisland.engine.core.command.conversation.ConversationCommand;
 import de.cubeisland.engine.core.command.conversation.ConversationContextFactory;
 import de.cubeisland.engine.core.command.parameterized.CommandFlag;
 import de.cubeisland.engine.core.command.parameterized.CommandParameter;
 import de.cubeisland.engine.core.command.parameterized.Completer;
 import de.cubeisland.engine.core.command.parameterized.ParameterizedContext;
+import de.cubeisland.engine.core.command.parameterized.ParameterizedTabContext;
 import de.cubeisland.engine.core.command.parameterized.completer.ItemCompleter;
 import de.cubeisland.engine.core.command.parameterized.completer.PlayerCompleter;
 import de.cubeisland.engine.core.user.User;
@@ -71,18 +71,18 @@ public class EditModeListener extends ConversationCommand
                 .addFlag(new CommandFlag("user","user"))
                 .addFlag(new CommandFlag("stock", "stock"))
                 .addFlag(new CommandFlag("nodemand", "nodemand"))
-                .addParameter(new CommandParameter("demand", Integer.class))
-                .addParameter(new CommandParameter("owner", User.class).setCompleter(new PlayerCompleter()))
-                .addParameter(new CommandParameter("price", String.class))
-                .addParameter(new CommandParameter("amount", Integer.class))
-                .addParameter(new CommandParameter("item", ItemStack.class).setCompleter(new ItemCompleter()))
-                .addParameter(new CommandParameter("setstock",Integer.class))
-                .addParameter(new CommandParameter("size",Integer.class).setCompleter(new Completer()
+                .addParameter(new CommandParameter("demand", "demand", Integer.class))
+                .addParameter(new CommandParameter("owner", "owner", User.class).setCompleter(new PlayerCompleter()))
+                .addParameter(new CommandParameter("price", "price", String.class))
+                .addParameter(new CommandParameter("amount", "amount", Integer.class))
+                .addParameter(new CommandParameter("item", "item", ItemStack.class).setCompleter(new ItemCompleter()))
+                .addParameter(new CommandParameter("setstock", "setstock", Integer.class))
+                .addParameter(new CommandParameter("size", "size", Integer.class).setCompleter(new Completer()
                 {
                     @Override
-                    public List<String> complete(CommandSender sender, String token)
+                    public List<String> complete(ParameterizedTabContext context, String token)
                     {
-                        if (module.perms().SIGN_SIZE_INFINITE.isAuthorized(sender))
+                        if (module.perms().SIGN_SIZE_INFINITE.isAuthorized(context.getSender()))
                         {
                             return Arrays.asList("6", "5", "4", "3", "2", "1", "-1");
                         }
@@ -162,7 +162,7 @@ public class EditModeListener extends ConversationCommand
         }
     }
 
-    public CommandResult run(CommandContext runContext) throws Exception
+    public CommandResult run(CommandContext runContext)
     {
         User user = (User)runContext.getSender();
         ParameterizedContext context = (ParameterizedContext) runContext;

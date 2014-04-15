@@ -17,84 +17,28 @@
  */
 package de.cubeisland.engine.core.command.parameterized;
 
-import java.util.LinkedList;
-import java.util.Locale;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.Stack;
 
-import de.cubeisland.engine.core.command.BasicContext;
 import de.cubeisland.engine.core.command.CommandSender;
 import de.cubeisland.engine.core.command.CubeCommand;
 import de.cubeisland.engine.core.user.User;
 
-import gnu.trove.map.hash.THashMap;
-import gnu.trove.set.hash.THashSet;
+import static java.util.Locale.ENGLISH;
 
-public class ParameterizedContext extends BasicContext
+public class ParameterizedContext extends AbstractParameterizedContext<Object>
 {
-    private final Set<String> flags;
-    private final Map<String, Object> params;
-
-    private final int flagCount;
-    private final int paramCount;
-
-    public ParameterizedContext(CubeCommand command, CommandSender sender, Stack<String> labels, LinkedList<String> args, Set<String> flags, Map<String, Object> params)
+    public ParameterizedContext(CubeCommand command, CommandSender sender, Stack<String> labels, List<String> args, Set<String> flags, Map<String, Object> params)
     {
-        super(command, sender, labels, args);
-        this.flags = flags;
-        this.params = params;
-
-        this.flagCount = flags.size();
-        this.paramCount = params.size();
-    }
-
-    public boolean hasFlag(String name)
-    {
-        return this.flags.contains(name.toLowerCase(Locale.ENGLISH));
-    }
-
-    public boolean hasFlags(String... names)
-    {
-        for (String name : names)
-        {
-            if (!this.hasFlag(name))
-            {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    public int getFlagCount()
-    {
-        return this.flagCount;
-    }
-
-    public Set<String> getFlags()
-    {
-        return new THashSet<>(this.flags);
-    }
-
-    public boolean hasParams()
-    {
-        return this.paramCount > 0;
-    }
-
-    public Map<String, Object> getParams()
-    {
-        return new THashMap<>(this.params);
-    }
-
-    public boolean hasParam(String name)
-    {
-        return this.params.containsKey(name.toLowerCase(Locale.ENGLISH));
+        super(command, sender, labels, args, flags, params);
     }
 
     @SuppressWarnings("unchecked")
     public <T> T getParam(String name)
     {
-        return (T)this.params.get(name.toLowerCase(Locale.ENGLISH));
+        return (T)this.params.get(name.toLowerCase(ENGLISH));
     }
 
     public <T> T getParam(String name, T def)

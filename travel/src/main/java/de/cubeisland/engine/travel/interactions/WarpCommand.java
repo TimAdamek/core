@@ -23,7 +23,6 @@ import java.util.TreeMap;
 import org.bukkit.Location;
 import org.bukkit.event.player.PlayerTeleportEvent;
 
-import de.cubeisland.engine.core.command.ArgBounds;
 import de.cubeisland.engine.core.command.CommandContext;
 import de.cubeisland.engine.core.command.CommandResult;
 import de.cubeisland.engine.core.command.CommandSender;
@@ -32,6 +31,8 @@ import de.cubeisland.engine.core.command.parameterized.Flag;
 import de.cubeisland.engine.core.command.parameterized.ParameterizedContext;
 import de.cubeisland.engine.core.command.reflected.Alias;
 import de.cubeisland.engine.core.command.reflected.Command;
+import de.cubeisland.engine.core.command.reflected.Grouped;
+import de.cubeisland.engine.core.command.reflected.Indexed;
 import de.cubeisland.engine.core.command.result.AsyncResult;
 import de.cubeisland.engine.core.permission.PermDefault;
 import de.cubeisland.engine.core.user.User;
@@ -54,11 +55,11 @@ public class WarpCommand extends ContainerCommand
         this.module = module;
         this.telePointManager = module.getTelepointManager();
 
-        this.getContextFactory().setArgBounds(new ArgBounds(0, 1));
+        // TODO this.getContextFactory().setArgBounds(new ArgBounds(0, 1));
     }
 
     @Override
-    public CommandResult run(CommandContext context) throws Exception
+    public CommandResult run(CommandContext context)
     {
         if (context.isSender(User.class) && context.getArgCount() > 0)
         {
@@ -87,14 +88,10 @@ public class WarpCommand extends ContainerCommand
     }
 
 
-    @Alias(names = {
-        "createwarp", "mkwarp", "makewarp"
-    })
-    @Command(names = {
-        "create", "make"
-    }, flags = {
-        @Flag(name = "priv", longName = "private")
-    }, permDefault = PermDefault.OP, desc = "Create a warp", min = 1, max = 1)
+    @Alias(names = {"createwarp", "mkwarp", "makewarp"})
+    @Command(names = {"create", "make"}, desc = "Create a warp",
+             flags = {@Flag(name = "priv", longName = "private")},
+             indexed = @Grouped(@Indexed("name")))
     public void createWarp(ParameterizedContext context)
     {
         if (this.telePointManager.getNumberOfWarps() == this.module.getConfig().warps.max)
@@ -127,12 +124,9 @@ public class WarpCommand extends ContainerCommand
         context.sendTranslated(CRITICAL, "This command can only be used by users!");
     }
 
-    @Alias(names = {
-        "removewarp", "deletewarp", "delwarp", "remwarp"
-    })
-    @Command(names = {
-        "remove", "delete"
-    }, permDefault = PermDefault.OP, desc = "Remove a warp", min = 1, max = 1)
+    @Alias(names = {"removewarp", "deletewarp", "delwarp", "remwarp"})
+    @Command(names = {"remove", "delete"}, desc = "Remove a warp",
+             indexed = @Grouped(@Indexed("warp")))
     public void removeWarp(CommandContext context)
     {
         Warp warp;
@@ -153,7 +147,9 @@ public class WarpCommand extends ContainerCommand
         context.sendTranslated(POSITIVE, "The warp is now deleted");
     }
 
-    @Command(permDefault = PermDefault.OP, desc = "Rename a warp", min = 2, max = 2)
+    @Command(desc = "Rename a warp",
+             indexed = {@Grouped(@Indexed("warp")),
+                        @Grouped(@Indexed("new name"))})
     public void rename(CommandContext context)
     {
         String name = context.getString(1);
@@ -183,7 +179,7 @@ public class WarpCommand extends ContainerCommand
         context.sendTranslated(POSITIVE, "The warps name is now changed");
     }
 
-    @Command(permDefault = PermDefault.OP, desc = "Move a warp", min = 1, max = 2)
+    @Command(desc = "Move a warp", indexed = @Grouped(@Indexed("warp")))
     public void move(CommandContext context)
     {
         CommandSender sender = context.getSender();
@@ -209,7 +205,9 @@ public class WarpCommand extends ContainerCommand
         user.sendTranslated(POSITIVE, "The warp is now moved to your current location");
     }
 
-    @Command(permDefault = PermDefault.TRUE, desc = "Search for a warp", min = 1, max = 2)
+    @Command(permDefault = PermDefault.TRUE, desc = "Search for a warp",
+             indexed = {@Grouped(@Indexed("name")),
+                        @Grouped(req = false, value = @Indexed("amount"))})
     public CommandResult search(CommandContext context)
     {
         String search = context.getString(0);
@@ -255,12 +253,12 @@ public class WarpCommand extends ContainerCommand
         };
     }
 
-    @Command(permDefault = PermDefault.TRUE, desc = "List all available warps", flags = {
-        @Flag(name = "pub", longName = "public"),
-        @Flag(name = "priv", longName = "private"),
-        @Flag(name = "o", longName = "owned"),
-        @Flag(name = "i", longName = "invited")
-    }, usage = "<user> <-PUBlic> <-PRIVate> <-Owned> <-Invited>", min = 0, max = 1)
+    @Command(permDefault = PermDefault.TRUE, desc = "List all available warps",
+             flags = {@Flag(name = "pub", longName = "public"),
+                      @Flag(name = "priv", longName = "private"),
+                      @Flag(name = "o", longName = "owned"),
+                      @Flag(name = "i", longName = "invited")},
+             indexed = @Grouped(req = false, value = @Indexed("user")))
     public void list(ParameterizedContext context)
     {
         int mask = context.getFlagCount() < 1 ? telePointManager.ALL : 0;
