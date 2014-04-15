@@ -113,6 +113,7 @@ public class VanillaCommands implements CommandHolder
             Locale locale = context.getSender().getLocale();
             long time = System.currentTimeMillis();
             this.core.getServer().reload();
+            // TODO NPE here fix me!!!
             context.sendMessage(this.core.getI18n().translate(locale, POSITIVE, "The reload is completed after {amount} seconds", MILLISECONDS.toSeconds(System.currentTimeMillis() - time)));
         }
     }
@@ -384,8 +385,8 @@ public class VanillaCommands implements CommandHolder
                 {
                     showSourceVersion(context, core.getSourceVersion());
                 }
-                context.sendTranslated(NEUTRAL, "Description: {input}", plugin.getDescription().getDescription());
-                context.sendTranslated(NEUTRAL, "Website: {input}", plugin.getDescription().getWebsite());
+                context.sendTranslated(NEUTRAL, "Description: {input}", plugin.getDescription().getDescription() == null ? "NONE" : plugin.getDescription().getDescription());
+                context.sendTranslated(NEUTRAL, "Website: {input}", plugin.getDescription().getWebsite() == null ? "NONE" : plugin.getDescription().getWebsite());
                 context.sendTranslated(NEUTRAL, "Authors:");
                 for (String author : plugin.getDescription().getAuthors())
                 {
