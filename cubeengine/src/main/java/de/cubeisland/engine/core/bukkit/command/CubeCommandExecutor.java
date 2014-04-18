@@ -40,7 +40,7 @@ import de.cubeisland.engine.core.command.CommandContext;
 import de.cubeisland.engine.core.command.CommandResult;
 import de.cubeisland.engine.core.command.CommandSender;
 import de.cubeisland.engine.core.command.ContainerCommand;
-import de.cubeisland.engine.core.command.ContainerCommand.ChildDelegation;
+import de.cubeisland.engine.core.command.ContainerCommand.DelegatingContextFilter;
 import de.cubeisland.engine.core.command.CubeCommand;
 import de.cubeisland.engine.core.command.HelpContext;
 import de.cubeisland.engine.core.command.exception.CommandException;
@@ -122,23 +122,28 @@ public class CubeCommandExecutor implements CommandExecutor, TabCompleter
         {
             ctx = command.getContextFactory().parse(command, sender, labels, args);
         }
-        if (command instanceof ContainerCommand)
+        if (command instanceof ContainerCommand && (ctx.getArgCount() != 1 || !tabComplete))
         {
-            if (!(ctx.getArgCount() == 1 && "".equals(ctx.getString(0))))
+            DelegatingContextFilter delegation = ((ContainerCommand)command).getDelegation();
+            if (delegation != null)
             {
-                ChildDelegation delegation = ((ContainerCommand)command).getDelegation();
-                if (delegation != null)
+                String child = delegation.delegateTo(ctx);
+                if (child != null)
                 {
-                    String child = delegation.delegateTo(ctx);
-                    if (child != null)
+                    CubeCommand target = command.getChild(child);
+                    if (target != null)
                     {
-                        CubeCommand target = command.getChild(child);
-                        if (target != null)
+
+                        if (tabComplete)
                         {
                             return target.getContextFactory().tabCompleteParse(target, sender, labels, args);
                         }
-                        command.getModule().getLog().warn("Child delegation failed: child '{}' not found!", child);
+                        else
+                        {
+                            return target.getContextFactory().parse(target, sender, labels, args);
+                        }
                     }
+                    command.getModule().getLog().warn("Child delegation failed: child '{}' not found!", child);
                 }
             }
         }
