@@ -34,7 +34,7 @@ import de.cubeisland.engine.core.recipe.result.logic.Result;
 /**
  * Represents some type of crafting recipe.
  */
-public abstract class Recipe<T extends Ingredients>
+public abstract class CubeRecipe<T extends Ingredients>
 {
     protected T ingredients;
     protected Condition condition;
@@ -44,13 +44,13 @@ public abstract class Recipe<T extends Ingredients>
     protected Set<org.bukkit.inventory.Recipe> bukkitRecipes;
     private boolean allowOldRecipe = false;
 
-    public Recipe(T ingredients, Result result)
+    public CubeRecipe(T ingredients, Result result)
     {
         this.ingredients = ingredients;
         this.result = result;
     }
 
-    public Recipe withCondition(Condition condition)
+    public CubeRecipe withCondition(Condition condition)
     {
         this.condition = condition;
         return this;
@@ -98,7 +98,7 @@ public abstract class Recipe<T extends Ingredients>
      * @param b
      * @return
      */
-    public final Recipe<T> allowOldRecipe(boolean b)
+    public final CubeRecipe<T> allowOldRecipe(boolean b)
     {
         this.allowOldRecipe = b;
         return this;

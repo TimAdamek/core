@@ -121,6 +121,7 @@ public final class BukkitCore extends JavaPlugin implements Core
     private InventoryGuardFactory inventoryGuard;
     private CorePerms corePerms;
     private BukkitBanManager banManager;
+    private RecipeManager recipeManager;
     private LogFactory logFactory;
     private Reflector configFactory;
     //endregion
@@ -130,6 +131,7 @@ public final class BukkitCore extends JavaPlugin implements Core
     private FreezeDetection freezeDetection;
     private boolean loaded = false;
     private boolean started = false;
+
 
     @Override
     public void onLoad()

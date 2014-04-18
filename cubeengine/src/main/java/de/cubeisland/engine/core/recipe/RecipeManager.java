@@ -31,10 +31,11 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.CraftItemEvent;
-import org.bukkit.event.inventory.InventoryAction;
 import org.bukkit.event.inventory.PrepareItemCraftEvent;
 import org.bukkit.inventory.CraftingInventory;
+import org.bukkit.inventory.FurnaceRecipe;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.Recipe;
 import org.bukkit.inventory.ShapedRecipe;
 import org.bukkit.inventory.ShapelessRecipe;
 
@@ -44,14 +45,15 @@ import de.cubeisland.engine.core.module.Module;
 import de.cubeisland.engine.core.util.Pair;
 
 import static org.bukkit.event.inventory.InventoryAction.MOVE_TO_OTHER_INVENTORY;
+import static org.bukkit.event.inventory.InventoryAction.NOTHING;
 
 public class RecipeManager implements Listener
 {
-    protected Map<Module, Set<Recipe>> recipes = new HashMap<>();
-    protected Set<WorkbenchRecipe> workbenchRecipes = new HashSet<>();
-    protected Set<FurnaceRecipe> furnaceRecipes = new HashSet<>();
+    protected Map<Module, Set<CubeRecipe>> recipes = new HashMap<>();
+    protected Set<CubeWorkbenchRecipe> workbenchRecipes = new HashSet<>();
+    protected Set<CubeFurnaceRecipe> furnaceRecipes = new HashSet<>();
 
-    protected Map<Recipe, Pair<Set<org.bukkit.inventory.Recipe>, Boolean>> replaceMap = new HashMap<>();
+    protected Map<CubeRecipe, Pair<Set<Recipe>, Boolean>> replaceMap = new HashMap<>();
 
     private final FurnaceManager furnaceManager;
 
@@ -70,37 +72,37 @@ public class RecipeManager implements Listener
     }
 
     @SuppressWarnings("unchecked")
-    public void registerRecipe(Module module, Recipe recipe)
+    public void registerRecipe(Module module, CubeRecipe recipe)
     {
-        Set<org.bukkit.inventory.Recipe> bukkitRecipes = recipe.getBukkitRecipes();
-        Set<org.bukkit.inventory.Recipe> oldRecipes = this.removeBukkitRecipe(recipe);
+        Set<Recipe> bukkitRecipes = recipe.getBukkitRecipes();
+        Set<Recipe> oldRecipes = this.removeBukkitRecipe(recipe);
         if (!oldRecipes.isEmpty())
         {
-            Pair<Set<org.bukkit.inventory.Recipe>, Boolean> prev = replaceMap.put(recipe, new Pair<>(oldRecipes, recipe.isOldRecipeAllowed()));
+            Pair<Set<Recipe>, Boolean> prev = replaceMap.put(recipe, new Pair<>(oldRecipes, recipe.isOldRecipeAllowed()));
             if (prev != null)
             {
                 module.getLog().warn("A Recipe with the same footprint has been registered already!");
             }
             System.out.print("Replaced old Recipes");
-            for (org.bukkit.inventory.Recipe oldRecipe : oldRecipes)
+            for (Recipe oldRecipe : oldRecipes)
             {
                 System.out.print(" - " + oldRecipe.getResult());
             }
         }
         System.out.print("Registered new Recipe");
-        for (org.bukkit.inventory.Recipe bukkitRecipe : bukkitRecipes)
+        for (Recipe bukkitRecipe : bukkitRecipes)
         {
             Bukkit.getServer().addRecipe(bukkitRecipe);
             System.out.print(" - " + bukkitRecipe.getResult());
         }
         this.getRecipes(module).add(recipe);
-        if (recipe instanceof WorkbenchRecipe)
+        if (recipe instanceof CubeWorkbenchRecipe)
         {
-            this.workbenchRecipes.add((WorkbenchRecipe)recipe);
+            this.workbenchRecipes.add((CubeWorkbenchRecipe)recipe);
         }
-        else if (recipe instanceof FurnaceRecipe)
+        else if (recipe instanceof CubeFurnaceRecipe)
         {
-            this.furnaceRecipes.add((FurnaceRecipe)recipe);
+            this.furnaceRecipes.add((CubeFurnaceRecipe)recipe);
         }
         else
         {
@@ -108,24 +110,24 @@ public class RecipeManager implements Listener
         }
     }
 
-    protected Set<org.bukkit.inventory.Recipe> removeBukkitRecipe(Recipe recipe)
+    protected Set<Recipe> removeBukkitRecipe(CubeRecipe recipe)
     {
-        Set<org.bukkit.inventory.Recipe> removed = new HashSet<>();
-        Iterator<org.bukkit.inventory.Recipe> it = Bukkit.getServer().recipeIterator();
+        Set<Recipe> removed = new HashSet<>();
+        Iterator<Recipe> it = Bukkit.getServer().recipeIterator();
         while (it.hasNext())
         {
-            org.bukkit.inventory.Recipe oldRecipe = it.next();
-            if (oldRecipe instanceof org.bukkit.inventory.FurnaceRecipe && recipe instanceof FurnaceRecipe)
+            Recipe oldRecipe = it.next();
+            if (oldRecipe instanceof FurnaceRecipe && recipe instanceof CubeFurnaceRecipe)
             {
-                if (((FurnaceRecipe)recipe).matchesRecipe(((org.bukkit.inventory.FurnaceRecipe)oldRecipe).getInput()))
+                if (((CubeFurnaceRecipe)recipe).matchesRecipe(((FurnaceRecipe)oldRecipe).getInput()))
                 {
                     it.remove();
                     removed.add(oldRecipe);
                 }
             }
-            else if ((oldRecipe instanceof ShapedRecipe || oldRecipe instanceof ShapelessRecipe) && recipe instanceof WorkbenchRecipe)
+            else if ((oldRecipe instanceof ShapedRecipe || oldRecipe instanceof ShapelessRecipe) && recipe instanceof CubeWorkbenchRecipe)
             {
-                if (((WorkbenchRecipe)recipe).matchesRecipe(oldRecipe))
+                if (((CubeWorkbenchRecipe)recipe).matchesRecipe(oldRecipe))
                 {
                     it.remove();
                     removed.add(oldRecipe);
@@ -135,29 +137,29 @@ public class RecipeManager implements Listener
         return removed;
     }
 
-    public void unregisterRecipe(Module module, Recipe recipe)
+    public void unregisterRecipe(Module module, CubeRecipe recipe)
     {
         this.getRecipes(module).remove(recipe);
-        if (recipe instanceof WorkbenchRecipe)
+        if (recipe instanceof CubeWorkbenchRecipe)
         {
             this.workbenchRecipes.remove(recipe);
         }
-        else if (recipe instanceof FurnaceRecipe)
+        else if (recipe instanceof CubeFurnaceRecipe)
         {
             this.furnaceRecipes.remove(recipe);
         }
         this.finishUnregister(recipe);
     }
 
-    private void finishUnregister(Recipe recipe)
+    private void finishUnregister(CubeRecipe recipe)
     {
         System.out.print("Unregistered Recipe");
         this.removeBukkitRecipe(recipe);
-        Pair<Set<org.bukkit.inventory.Recipe>, Boolean> pair = replaceMap.get(recipe);
+        Pair<Set<Recipe>, Boolean> pair = replaceMap.get(recipe);
         if (pair != null)
         {
             System.out.print("Reregistered previous Recipes");
-            for (org.bukkit.inventory.Recipe prevRecipe : pair.getLeft())
+            for (Recipe prevRecipe : pair.getLeft())
             {
                 System.out.print(" - "+ prevRecipe.getResult());
                 Bukkit.getServer().addRecipe(prevRecipe);
@@ -167,10 +169,10 @@ public class RecipeManager implements Listener
 
     public void unregisterAllRecipes(Module module)
     {
-        Set<Recipe> remove = this.recipes.remove(module);
+        Set<CubeRecipe> remove = this.recipes.remove(module);
         this.workbenchRecipes.removeAll(remove);
         this.furnaceRecipes.removeAll(remove);
-        for (Recipe recipe : remove)
+        for (CubeRecipe recipe : remove)
         {
             this.finishUnregister(recipe);
         }
@@ -179,19 +181,19 @@ public class RecipeManager implements Listener
     public void unregisterAllRecipes()
     {
         this.recipes.clear();
-        for (Recipe recipe : this.workbenchRecipes)
+        for (CubeRecipe recipe : this.workbenchRecipes)
         {
             this.finishUnregister(recipe);
         }
-        for (Recipe recipe : this.furnaceRecipes)
+        for (CubeRecipe recipe : this.furnaceRecipes)
         {
             this.finishUnregister(recipe);
         }
     }
 
-    private Set<Recipe> getRecipes(Module module)
+    private Set<CubeRecipe> getRecipes(Module module)
     {
-        Set<Recipe> recipeSet = this.recipes.get(module);
+        Set<CubeRecipe> recipeSet = this.recipes.get(module);
         if (recipeSet == null)
         {
             recipeSet = new HashSet<>();
@@ -203,76 +205,66 @@ public class RecipeManager implements Listener
     @EventHandler
     public void onPrepareItemCraft(PrepareItemCraftEvent event)
     {
-        System.out.println("Prepare Craft");
-        ItemStack[] matrix = event.getInventory().getMatrix();
         if (event.getViewers().size() > 1)
         {
             event.getInventory().setResult(null);
             CubeEngine.getLog().warn("Aborted PrepareItemCraftEvent because {} players were looking into the same CraftingInventory!", event.getViewers().size());
             return;
         }
-        for (HumanEntity humanEntity : event.getViewers()) // only 1 humanEntity
+        HumanEntity player = event.getViewers().get(0);
+        if (player instanceof Player)
         {
-            if (humanEntity instanceof Player)
+            for (CubeWorkbenchRecipe recipe : workbenchRecipes)
             {
-                for (WorkbenchRecipe recipe : workbenchRecipes)
+                if (recipe.matchesRecipe(event.getRecipe()))
                 {
-                    if (recipe.matchesRecipe(event.getRecipe()))
-                    {
-                        if (recipe.matchesConditions((Player)humanEntity, matrix))
-                        {
-                            Pair<ItemStack[], Integer> shift = this.shiftCrafting.get(humanEntity);
-                            if (shift != null && shift.getRight() != null)
-                            {
-                                shift.setRight(shift.getRight() + 1);
-                                ItemStack[] myMatrix = shift.getLeft();
-                                if (shift.getRight() >= recipe.getSize())
-                                {
-                                    if (!this.reduceMyMatrix(myMatrix, recipe, (Player)humanEntity, null))// TODO block
-                                    {
-                                        shift.setRight(null);
-                                        event.getInventory().setResult(null); // Stop crafting!
-                                        System.out.print("Shift Craft End");
-                                        return;
-                                    }
-                                    event.getInventory().setResult(recipe.getResult((Player)humanEntity, null)); // TODO block
-                                    System.out.print("Shift Craft Result");
-                                    shift.setRight(0);
-                                    return;
-                                }
-                                System.out.print("Shift Craft Preview");
-                                // else preview (one of A LOT)
-                            }
-                            event.getInventory().setResult(recipe.getPreview((Player)humanEntity, null)); // TODO block
-                            return;
-                        }
-                        else
-                        {
-                            Pair<Set<org.bukkit.inventory.Recipe>, Boolean> pair = this.replaceMap.get(recipe);
-                            if (pair.getRight())
-                            {
-                                ItemStack result = null;
-                                for (org.bukkit.inventory.Recipe check : pair.getLeft())
-                                {
-                                    if (WorkbenchRecipe.isMatching(check, event.getRecipe()))
-                                    {
-                                        if (result != null)
-                                        {
-                                            core.getLog().warn("Custom Recipe has multiple valid fallback!");
-                                        }
-                                        result = check.getResult();
-                                    }
-                                }
-                                event.getInventory().setResult(result);
-                                System.out.print("Used FallBack Recipe");
-                                return;
-                            }
-                            System.out.print("No more match!");
-                        }
-                    }
+                    prepare(event, event.getInventory().getMatrix(), (Player)player, recipe);
+                    return;
                 }
             }
+            return;
         }
+        CubeEngine.getLog().warn("A non Player tried to craft");
+    }
+
+    private void prepare(PrepareItemCraftEvent event, ItemStack[] matrix, Player player, CubeWorkbenchRecipe recipe)
+    {
+        if (recipe.matchesConditions(player, matrix))
+        {
+            Craft craft = this.crafting.get(player);
+            if (craft == null)
+            {
+                System.out.println("Prepare Craft");
+                event.getInventory().setResult(recipe.getPreview(player, null)); // TODO block
+                return;
+            }
+            if (!craft.isFinished())
+            {
+                event.getInventory().setResult(craft.prepareItemCraft(event.getInventory().getResult()));
+                return;
+            }
+        }
+
+        Pair<Set<Recipe>, Boolean> pair = this.replaceMap.get(recipe);
+        if (pair.getRight())
+        {
+            ItemStack result = null;
+            for (Recipe check : pair.getLeft())
+            {
+                if (CubeWorkbenchRecipe.isMatching(check, event.getRecipe()))
+                {
+                    if (result != null)
+                    {
+                        core.getLog().warn("Custom Recipe has multiple valid fallback!");
+                    }
+                    result = check.getResult();
+                }
+            }
+            event.getInventory().setResult(result);
+            System.out.print("Used FallBack Recipe");
+            return;
+        }
+        System.out.print("No more match!");
     }
 
     private ItemStack[] reduceMatrix(ItemStack[] matrix)
@@ -292,7 +284,7 @@ public class RecipeManager implements Listener
         return matrix;
     }
 
-    private boolean reduceMyMatrix(ItemStack[] matrix, WorkbenchRecipe recipe, Player player, BlockState block)
+    private boolean reduceMyMatrix(ItemStack[] matrix, CubeWorkbenchRecipe recipe, Player player, BlockState block)
     {
         try
         {
@@ -314,102 +306,90 @@ public class RecipeManager implements Listener
         return true;
     }
 
-    private Map<Player, Pair<ItemStack[], Integer>> shiftCrafting = new HashMap<>();
+    private Map<Player, Craft> crafting = new HashMap<>();
 
-    private ItemStack[] deepClone(ItemStack[] matrix)
-    {
-        ItemStack[] clone = matrix.clone();
-        for (int i = 0 ; i < clone.length ; i++)
-        {
-            if (clone[i] != null)
-            {
-                clone[i] = clone[i].clone();
-            }
-        }
-        return clone;
-    }
+
+
+
+
 
     @EventHandler
     public void onItemCraft(CraftItemEvent event)
     {
-        System.out.println("Craft");
-        if (!(event.getWhoClicked() instanceof Player) || event.getAction() == InventoryAction.NOTHING)
+        HumanEntity player = event.getWhoClicked();
+        if (event.getAction() == NOTHING)
         {
             return;
         }
-        final Player player = (Player)event.getWhoClicked();
-        for (final WorkbenchRecipe recipe : workbenchRecipes)
+        if (player instanceof Player)
         {
-            if (recipe.matchesRecipe(event.getRecipe()))
+            for (CubeWorkbenchRecipe recipe : workbenchRecipes)
             {
-                if (recipe.matchesConditions(player, event.getInventory().getMatrix()))
+                if (recipe.matchesRecipe(event.getRecipe()))
                 {
-                    final ItemStack[] matrix = this.deepClone(event.getInventory().getMatrix());
-                    if (event.getAction() == MOVE_TO_OTHER_INVENTORY)
-                    {
-                        this.shiftCrafting.put(player, new Pair<>(matrix, 0));
-                    }
-                    event.getInventory().setResult(recipe.getResult(player, null)); // TODO block
-                    final Map<Integer, ItemStack> ingredientResults = recipe.getIngredientResults(player, null, event.getInventory().getMatrix()); // TODO block
-                    if (!ingredientResults.isEmpty() || event.getAction() == MOVE_TO_OTHER_INVENTORY)
-                    {
-                        recipe.runEffects(core, player);
-                        final CraftingInventory inventory = event.getInventory();
-                        core.getTaskManager().runTaskDelayed(core.getModuleManager().getCoreModule(),
-                                                             new Runnable()
-                                                             {
-                                                                 @Override
-                                                                 public void run()
-                                                                 {
-                                                                     Pair<ItemStack[], Integer> shift = shiftCrafting.remove(player);
-                                                                     if (shift == null)
-                                                                     {
-                                                                         System.out.print("Normal Craft");
-                                                                         reduceMyMatrix(matrix, recipe, player, null); // TODO block
-                                                                         inventory.setMatrix(matrix);
-                                                                     }
-                                                                     else
-                                                                     {
-                                                                         inventory.setMatrix(reduceMatrix(shift.getLeft()));
-                                                                     }
-                                                                 }
-                                                             }, 1L);
-                    }
-                    core.getTaskManager().runTaskDelayed(core.getModuleManager().getCoreModule(),
-                                                         new Runnable()
-                                                         {
-                                                             @Override
-                                                             public void run()
-                                                             {
-                                                                 player.updateInventory();
-                                                             }
-                                                         }, 2L);
-
+                    this.craft(event, (Player)player, recipe);
                     return;
                 }
-                else
+            }
+            return;
+        }
+        CubeEngine.getLog().warn("A non Player tried to craft");
+    }
+
+    private void craft(CraftItemEvent event, final Player player, final CubeWorkbenchRecipe recipe)
+    {
+        CraftingInventory table = event.getInventory();
+        System.out.println("Craft");
+        Craft.showMatrix(table.getMatrix());
+        if (recipe.matchesConditions(player, table.getMatrix()))
+        {
+            this.crafting.put(player, new Craft(table.getMatrix(), player, recipe, event.getAction() == MOVE_TO_OTHER_INVENTORY));
+            table.setResult(recipe.getResult(player, null)); // TODO block
+            final Map<Integer, ItemStack> ingredientResults = recipe.getIngredientResults(player, null, table.getMatrix()); // TODO block
+            if (!ingredientResults.isEmpty() || event.getAction() == MOVE_TO_OTHER_INVENTORY)
+            {
+                recipe.runEffects(core, player);
+                final CraftingInventory inventory = table;
+                core.getTaskManager().runTaskDelayed(core.getModuleManager().getCoreModule(),
+                                                     new Runnable()
+                                                     {
+                                                         @Override
+                                                         public void run()
+                                                         {
+                                                             Craft craft = crafting.remove(player);
+                                                             craft.finalize(inventory);
+                                                         }
+                                                     }, 1);
+            }
+            core.getTaskManager().runTaskDelayed(core.getModuleManager().getCoreModule(),
+                                                 new Runnable()
+                                                 {
+                                                     @Override
+                                                     public void run()
+                                                     {
+                                                         player.updateInventory();
+                                                     }
+                                                 }, 2);
+
+            return;
+        }
+        Pair<Set<Recipe>, Boolean> pair = this.replaceMap.get(recipe);
+        if (pair.getRight())
+        {
+            ItemStack result = null;
+            for (Recipe check : pair.getLeft())
+            {
+                if (CubeWorkbenchRecipe.isMatching(check, event.getRecipe()))
                 {
-                    Pair<Set<org.bukkit.inventory.Recipe>, Boolean> pair = this.replaceMap.get(recipe);
-                    if (pair.getRight())
+                    if (result != null)
                     {
-                        ItemStack result = null;
-                        for (org.bukkit.inventory.Recipe check : pair.getLeft())
-                        {
-                            if (WorkbenchRecipe.isMatching(check, event.getRecipe()))
-                            {
-                                if (result != null)
-                                {
-                                    core.getLog().warn("Custom Recipe has multiple valid fallback!");
-                                }
-                                result = check.getResult();
-                            }
-                        }
-                        event.getInventory().setResult(result);
-                        System.out.print("Used FallBack Recipe");
-                        return;
+                        core.getLog().warn("Custom Recipe has multiple valid fallback!");
                     }
+                    result = check.getResult();
                 }
             }
+            table.setResult(result);
+            System.out.print("Used FallBack Recipe");
         }
     }
 

@@ -20,20 +20,21 @@ package de.cubeisland.engine.core.recipe;
 import org.bukkit.block.BlockState;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.Recipe;
 
 import de.cubeisland.engine.core.recipe.condition.logic.Condition;
 import de.cubeisland.engine.core.recipe.result.logic.Result;
 
-public class FurnaceRecipe extends Recipe<FurnaceIngredients>
+public class CubeFurnaceRecipe extends CubeRecipe<FurnaceIngredients>
 {
     private Result preview;
 
-    public FurnaceRecipe(FurnaceIngredients ingredients, Result result)
+    public CubeFurnaceRecipe(FurnaceIngredients ingredients, Result result)
     {
         super(ingredients, result);
     }
 
-    public final FurnaceRecipe withPreview(Result preview)
+    public final CubeFurnaceRecipe withPreview(Result preview)
     {
         this.preview = preview;
         return this;
@@ -49,9 +50,9 @@ public class FurnaceRecipe extends Recipe<FurnaceIngredients>
     }
 
     @Override
-    public final FurnaceRecipe withCondition(Condition condition)
+    public final CubeFurnaceRecipe withCondition(Condition condition)
     {
-        return (FurnaceRecipe)super.withCondition(condition);
+        return (CubeFurnaceRecipe)super.withCondition(condition);
     }
 
     public boolean matchesRecipe(ItemStack smelting)
@@ -60,7 +61,7 @@ public class FurnaceRecipe extends Recipe<FurnaceIngredients>
         {
             return false;
         }
-        for (org.bukkit.inventory.Recipe recipe : this.bukkitRecipes)
+        for (Recipe recipe : this.bukkitRecipes)
         {
             if (recipe instanceof org.bukkit.inventory.FurnaceRecipe)
             {

@@ -22,18 +22,19 @@ import java.util.Map;
 import org.bukkit.block.BlockState;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.Recipe;
 import org.bukkit.inventory.ShapedRecipe;
 import org.bukkit.inventory.ShapelessRecipe;
 
 import de.cubeisland.engine.core.recipe.condition.logic.Condition;
 import de.cubeisland.engine.core.recipe.result.logic.Result;
 
-public class WorkbenchRecipe extends Recipe<WorkbenchIngredients>
+public class CubeWorkbenchRecipe extends CubeRecipe<WorkbenchIngredients>
 {
     private Result preview;
     private int size;
 
-    public WorkbenchRecipe(WorkbenchIngredients ingredients, Result result)
+    public CubeWorkbenchRecipe(WorkbenchIngredients ingredients, Result result)
     {
         super(ingredients, result);
         this.size = ingredients.getSize();
@@ -44,16 +45,16 @@ public class WorkbenchRecipe extends Recipe<WorkbenchIngredients>
         return ingredients.getIngredientResults(player, block, matrix.clone());
     }
 
-    public final WorkbenchRecipe withPreview(Result preview)
+    public final CubeWorkbenchRecipe withPreview(Result preview)
     {
         this.preview = preview;
         return this;
     }
 
     @Override
-    public final WorkbenchRecipe withCondition(Condition condition)
+    public final CubeWorkbenchRecipe withCondition(Condition condition)
     {
-        return (WorkbenchRecipe)super.withCondition(condition);
+        return (CubeWorkbenchRecipe)super.withCondition(condition);
     }
 
     public final boolean matchesConditions(Player player, ItemStack[] matrix)
@@ -77,7 +78,7 @@ public class WorkbenchRecipe extends Recipe<WorkbenchIngredients>
         return this.preview.getResult(player, block, null);
     }
 
-    public static <R extends org.bukkit.inventory.Recipe> boolean isMatching(R r1, R r2)
+    public static <R extends Recipe> boolean isMatching(R r1, R r2)
     {
         if (r1 instanceof ShapelessRecipe)
         {
@@ -118,15 +119,15 @@ public class WorkbenchRecipe extends Recipe<WorkbenchIngredients>
         return false;
     }
 
-    public final boolean matchesRecipe(org.bukkit.inventory.Recipe checkRecipe)
+    public final boolean matchesRecipe(Recipe checkRecipe)
     {
-        for (org.bukkit.inventory.Recipe myRecipe : this.bukkitRecipes)
+        for (Recipe bRecipe : this.bukkitRecipes)
         {
-            if (myRecipe.getClass().isAssignableFrom(checkRecipe.getClass())) // same type of recipe
+            if (bRecipe.getClass().isAssignableFrom(checkRecipe.getClass())) // same type of recipe
             {
-                if (checkRecipe.getResult().isSimilar(myRecipe.getResult()))
+                if (checkRecipe.getResult().isSimilar(bRecipe.getResult()))
                 {
-                    if (isMatching(myRecipe, checkRecipe))
+                    if (isMatching(bRecipe, checkRecipe))
                     {
                         return true;
                     }

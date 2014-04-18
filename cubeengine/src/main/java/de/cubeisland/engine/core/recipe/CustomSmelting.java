@@ -31,7 +31,7 @@ public class CustomSmelting
     private final CoreModule coreModule;
     private final FurnaceManager manager;
 
-    protected FurnaceRecipe recipe;
+    protected CubeFurnaceRecipe recipe;
     protected FuelIngredient fuel;
     protected int totalSmeltTime;
     protected int curSmeltTime;
@@ -50,7 +50,7 @@ public class CustomSmelting
 
     public int N = 0; // TODO make private
 
-    public CustomSmelting(FurnaceManager manager, Furnace furnace, FurnaceRecipe recipe, FuelIngredient fuel)
+    public CustomSmelting(FurnaceManager manager, Furnace furnace, CubeFurnaceRecipe recipe, FuelIngredient fuel)
     {
         this.location = furnace.getLocation();
         this.coreModule = manager.coreModule;
@@ -59,7 +59,7 @@ public class CustomSmelting
         this.updateForNewRecipe(furnace, recipe, fuel);
     }
 
-    public CustomSmelting updateForNewRecipe(Furnace furnace, FurnaceRecipe recipe, FuelIngredient fuel)
+    public CustomSmelting updateForNewRecipe(Furnace furnace, CubeFurnaceRecipe recipe, FuelIngredient fuel)
     {
         this.recipe = recipe;
         this.fuel = fuel;
