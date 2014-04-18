@@ -18,18 +18,17 @@
 package de.cubeisland.engine.core.command.parameterized;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Stack;
 
 import de.cubeisland.engine.core.Core;
 import de.cubeisland.engine.core.TestCore;
-import de.cubeisland.engine.core.command.ArgBounds;
 import de.cubeisland.engine.core.command.CommandSender;
 import de.cubeisland.engine.core.command.CubeCommand;
 import de.cubeisland.engine.core.command.TestCommand;
 import de.cubeisland.engine.core.command.sender.TestConsoleSender;
 import de.cubeisland.engine.core.module.Module;
 import de.cubeisland.engine.core.module.ModuleManager;
-
 import junit.framework.TestCase;
 
 import static de.cubeisland.engine.core.command.parameterized.ParameterizedContextFactory.readString;
@@ -77,9 +76,9 @@ public class ParameterizedContextFactoryTest extends TestCase
     public void testContextFactory()
     {
         final ParameterizedContextFactory factory = new ParameterizedContextFactory(
-            new ArgBounds(0),
-            Arrays.asList(new CommandFlag("a", "all")),
-            Arrays.asList(new CommandParameter("test", String.class))
+            Collections.<CommandParameterIndexed>emptyList(),
+            Arrays.asList(new CommandFlag("a", "all", null)),
+            Arrays.asList(new CommandParameter("test", "label", String.class, null))
         );
 
         Stack<String> labels = new Stack<>();

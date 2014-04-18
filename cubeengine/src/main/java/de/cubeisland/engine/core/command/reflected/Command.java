@@ -36,12 +36,6 @@ public @interface Command
 
     String desc();
 
-    String usage() default "";
-
-    int min() default 0;
-
-    int max() default 0;
-
     boolean checkPerm() default true;
 
     /**
@@ -57,6 +51,8 @@ public @interface Command
     Flag[] flags() default {};
 
     Param[] params() default {};
+
+    Grouped[] indexed() default {};
 
     boolean loggable() default true;
 

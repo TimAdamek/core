@@ -17,14 +17,16 @@
  */
 package de.cubeisland.engine.core.command.reflected;
 
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.util.List;
 
 import de.cubeisland.engine.core.command.CommandContext;
 import de.cubeisland.engine.core.command.CommandResult;
+import de.cubeisland.engine.core.command.exception.CommandException;
 import de.cubeisland.engine.core.command.parameterized.ParameterizedCommand;
 import de.cubeisland.engine.core.command.parameterized.ParameterizedContextFactory;
 import de.cubeisland.engine.core.module.Module;
+import de.cubeisland.engine.core.permission.Permission;
 
 public class ReflectedCommand extends ParameterizedCommand
 {
@@ -33,9 +35,9 @@ public class ReflectedCommand extends ParameterizedCommand
     private final Class<? extends CommandContext> contextType;
 
     @SuppressWarnings("unchecked")
-    public ReflectedCommand(Module module, Object holder, Method method, String name, String description, String usage, List<String> aliases, ParameterizedContextFactory factory)
+    public ReflectedCommand(Module module, Object holder, Method method, String name, String description, ParameterizedContextFactory factory, Permission permission)
     {
-        super(module, name, description, usage, aliases, factory);
+        super(module, name, description, factory, permission);
 
         this.holder = holder;
         this.method = method;
@@ -50,14 +52,29 @@ public class ReflectedCommand extends ParameterizedCommand
     }
 
     @Override
-    public CommandResult run(final CommandContext context) throws Exception
+    public CommandResult run(final CommandContext context)
     {
         if (this.contextType.isInstance(context))
         {
-            Object result = this.method.invoke(this.holder, context);
-            if (result instanceof CommandResult)
+            try
             {
-                return (CommandResult)result;
+                Object result = this.method.invoke(this.holder, context);
+                if (result instanceof CommandResult)
+                {
+                    return (CommandResult)result;
+                }
+            }
+            catch (IllegalAccessException e)
+            {
+                throw new RuntimeException(e);
+            }
+            catch (InvocationTargetException e)
+            {
+                if (e.getCause() instanceof CommandException)
+                {
+                    throw (CommandException)e.getCause();
+                }
+                throw new RuntimeException(e.getCause());
             }
         }
         return null;

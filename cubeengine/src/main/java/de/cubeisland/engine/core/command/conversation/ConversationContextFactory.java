@@ -17,53 +17,50 @@
  */
 package de.cubeisland.engine.core.command.conversation;
 
-import java.util.LinkedList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
 import java.util.Stack;
 
-import de.cubeisland.engine.core.command.ArgBounds;
 import de.cubeisland.engine.core.command.ArgumentReader;
 import de.cubeisland.engine.core.command.CommandSender;
 import de.cubeisland.engine.core.command.CubeCommand;
 import de.cubeisland.engine.core.command.exception.InvalidArgumentException;
 import de.cubeisland.engine.core.command.parameterized.CommandFlag;
 import de.cubeisland.engine.core.command.parameterized.CommandParameter;
+import de.cubeisland.engine.core.command.parameterized.CommandParameterIndexed;
 import de.cubeisland.engine.core.command.parameterized.ParameterizedContext;
 import de.cubeisland.engine.core.command.parameterized.ParameterizedContextFactory;
 import gnu.trove.map.hash.THashMap;
 import gnu.trove.set.hash.THashSet;
 
-import static de.cubeisland.engine.core.command.ArgBounds.NO_MAX;
 import static de.cubeisland.engine.core.util.formatter.MessageType.NEGATIVE;
 import static de.cubeisland.engine.core.util.formatter.MessageType.NONE;
 import static java.util.Locale.ENGLISH;
 
 public class ConversationContextFactory extends ParameterizedContextFactory
 {
-    private final LinkedList<String> args;
-
     public ConversationContextFactory()
     {
-        super(new ArgBounds(0, NO_MAX));
-        this.args = new LinkedList<>();
+        super(Arrays.asList(CommandParameterIndexed.greedyIndex()));
     }
 
     @Override
-    public ParameterizedContext parse(CubeCommand command, CommandSender sender, Stack<String> labels, String[] commandLine)
+    public ParameterizedContext parse(CubeCommand command, CommandSender sender, Stack<String> labels, String[] rawArgs)
     {
         final Set<String> flags = new THashSet<>();
         final Map<String, Object> params = new THashMap<>();
-        if (commandLine.length > 0)
+        if (rawArgs.length > 0)
         {
-            for (int offset = 0; offset < commandLine.length;)
+            for (int offset = 0; offset < rawArgs.length;)
             {
-                if (commandLine[offset].isEmpty())
+                if (rawArgs[offset].isEmpty())
                 {
                     offset++;
                     continue;
                 }
-                String flag = commandLine[offset].toLowerCase(ENGLISH); // lowercase flag
+                String flag = rawArgs[offset].toLowerCase(ENGLISH); // lowercase flag
                 CommandFlag cmdFlag = this.getFlag(flag);
                 if (cmdFlag != null) // has flag ?
                 {
@@ -71,15 +68,15 @@ public class ConversationContextFactory extends ParameterizedContextFactory
                     offset++;
                     continue;
                 } //else named param
-                String paramName = commandLine[offset].toLowerCase(ENGLISH);
+                String paramName = rawArgs[offset].toLowerCase(ENGLISH);
                 CommandParameter param = this.getParameter(paramName);
-                if (param != null && offset + 1 < commandLine.length)
+                if (param != null && offset + 1 < rawArgs.length)
                 {
                     StringBuilder paramValue = new StringBuilder();
                     try
                     {
                         offset++;
-                        offset += readString(paramValue, commandLine, offset);
+                        offset += readString(paramValue, rawArgs, offset);
                         params.put(param.getName(), ArgumentReader.read(param.getType(), paramValue.toString(), sender));
                     }
                     catch (InvalidArgumentException ex)
@@ -91,6 +88,6 @@ public class ConversationContextFactory extends ParameterizedContextFactory
                 offset++;
             }
         }
-        return new ParameterizedContext(command, sender, labels, this.args, flags, params);
+        return new ParameterizedContext(command, sender, labels, Collections.<String>emptyList(), flags, params);
     }
 }

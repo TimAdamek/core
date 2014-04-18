@@ -17,10 +17,12 @@
  */
 package de.cubeisland.engine.core.command;
 
-import java.util.LinkedList;
+import java.util.List;
 import java.util.Stack;
 
 import de.cubeisland.engine.core.Core;
+import de.cubeisland.engine.core.command.exception.PermissionDeniedException;
+import de.cubeisland.engine.core.permission.Permission;
 import de.cubeisland.engine.core.user.User;
 import de.cubeisland.engine.core.util.formatter.MessageType;
 
@@ -116,7 +118,7 @@ public interface CommandContext
      *
      * @return the arguments
      */
-    LinkedList<String> getArgs();
+    List<String> getArgs();
 
     /**
      * Checks whether the given index is available in the args list
@@ -177,4 +179,6 @@ public interface CommandContext
      * @return a user or null
      */
     User getUser(int i);
+
+    void ensurePermission(Permission permission) throws PermissionDeniedException;
 }

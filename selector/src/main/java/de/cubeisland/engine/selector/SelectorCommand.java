@@ -17,8 +17,8 @@
  */
 package de.cubeisland.engine.selector;
 
-import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
@@ -33,6 +33,7 @@ import static de.cubeisland.engine.core.util.formatter.MessageType.NEGATIVE;
 import static de.cubeisland.engine.core.util.formatter.MessageType.POSITIVE;
 import static de.cubeisland.engine.selector.CuboidSelector.SELECTOR_TOOL_NAME;
 import static org.bukkit.Material.WOOD_AXE;
+import static java.util.Arrays.asList;
 
 public class SelectorCommand extends CubeCommand
 {
@@ -41,12 +42,12 @@ public class SelectorCommand extends CubeCommand
         super(module, "selectiontool", "Provides you with a wand to select a cuboid", new BasicContextFactory());
         if (!module.hasWorldEdit())
         {
-            this.setAliases(Arrays.asList("/wand"));
+            this.setAliases(new HashSet<>(asList("/wand")));
         }
     }
 
     @Override
-    public CommandResult run(CommandContext context) throws Exception
+    public CommandResult run(CommandContext context)
     {
         if (context.getSender() instanceof User)
         {
@@ -78,7 +79,7 @@ public class SelectorCommand extends CubeCommand
             found = new ItemStack(WOOD_AXE,1);
             ItemMeta meta = found.getItemMeta();
             meta.setDisplayName(SELECTOR_TOOL_NAME);
-            meta.setLore(Arrays.asList("created by " + user.getDisplayName()));
+            meta.setLore(asList("created by " + user.getDisplayName()));
             found.setItemMeta(meta);
             ItemStack oldItemInHand = user.getItemInHand();
             user.setItemInHand(found);

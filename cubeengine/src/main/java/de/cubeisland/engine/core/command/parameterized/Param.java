@@ -17,13 +17,23 @@
  */
 package de.cubeisland.engine.core.command.parameterized;
 
+import de.cubeisland.engine.core.permission.PermDefault;
+
+import static de.cubeisland.engine.core.permission.PermDefault.OP;
+
 public @interface Param
 {
     String[] names();
+
+    String label() default "";
 
     Class type() default String.class;
 
     boolean required() default false;
 
     Class<? extends Completer> completer() default Completer.class;
+
+    String permission() default "";
+
+    PermDefault permDefault() default OP;
 }

@@ -22,80 +22,141 @@ import java.util.Set;
 
 import org.bukkit.permissions.Permissible;
 
-import de.cubeisland.engine.core.command.CubeCommand;
-import de.cubeisland.engine.core.util.StringUtils;
-
 import static de.cubeisland.engine.core.contract.Contract.expectNotNull;
 import static de.cubeisland.engine.core.permission.PermDefault.FALSE;
 import static de.cubeisland.engine.core.permission.PermDefault.OP;
 
 public class Permission
 {
-    private final String name;
+    private final String baseName;
     private final PermDefault def;
-    private final Set<Permission> parents = new HashSet<>(); // bound as children or attached
 
+    private Permission nameParent = null;
+    private final Set<Permission> parents = new HashSet<>(); // bound as children or attached
     private final Set<Permission> children = new HashSet<>(); // bound onto name.*
     private final Set<Permission> attached = new HashSet<>(); // bound onto name
 
     private final boolean wildcard;
 
-    public static final Permission BASE = new Permission(null, "cubeengine", FALSE, true); // cubeengine.*
+    private String name = null;
 
-    private Permission(String parentName, String name, PermDefault def)
+    /**
+     * The Base Permission for ALL CubeEngine Permissions
+     */
+    public static final Permission BASE = new Permission("cubeengine", FALSE, true); // cubeengine.*
+
+    private Permission(String name, PermDefault def)
     {
-       this(parentName, name, def, false);
+       this(name, def, false);
     }
 
-    private Permission(String parentName, String name, PermDefault def, boolean wildcard)
+    private Permission(String name, PermDefault def, boolean wildcard)
     {
-        if (parentName != null)
-        {
-            this.name = parentName.toLowerCase() + "." + name.toLowerCase();
-        }
-        else
-        {
-            this.name = name.toLowerCase();
-        }
+        this(null, name, def, wildcard);
+    }
+
+    private Permission(Permission permission, String name, PermDefault def)
+    {
+        this(permission, name, def, false);
+    }
+
+    private Permission(Permission permission, String name, PermDefault def, boolean wildcard)
+    {
+        this.nameParent = permission;
+        this.baseName = name;
         this.def = def;
         this.wildcard = wildcard;
+
+        this.generateName();
     }
 
+    /**
+     * Creates a new detached permission with this permission as nameParent
+     *
+     * @param name the name of the permission
+     * @return the new permission
+     */
     public Permission newPerm(String name)
     {
         return this.newPerm(name, OP);
     }
 
+    /**
+     * Creates a new detached permission with this permission as nameParent
+     *
+     * @param name the name of the permission
+     * @param def the default
+     * @return the new permission
+     */
     public Permission newPerm(String name, PermDefault def)
     {
-        return new Permission(this.name, name, def);
+        return new Permission(this, name, def);
     }
 
+    /**
+     * Creates a new detached wildcard permission with this permission as nameParent
+     *
+     * @param name the name of the permission
+     * @return the new permission
+     */
     public Permission newWildcard(String name)
     {
         return this.newWildcard(name, FALSE);
     }
 
+    /**
+     * Creates a new detached wildcard permission with this permission as nameParent
+     *
+     * @param name the name of the permission
+     * @param def the default
+     * @return the new permission
+     */
     public Permission newWildcard(String name, PermDefault def)
     {
-        return new Permission(this.name, name, def, true);
+        return new Permission(this, name, def, true);
     }
 
+    /**
+     * Creates a new permission with this permission as parent
+     *
+     * @param name the name of the permission
+     * @return the new permission
+     */
     public Permission child(String name)
     {
         return this.child(name, OP);
     }
 
+    /**
+     * Creates a new permission with this permission as parent
+     *
+     * @param name the name of the permission
+     * @param def the default
+     * @return the new permission
+     */
     public Permission child(String name, PermDefault def)
     {
         return this.getChild(name, def, false);
     }
 
+    /**
+     * Creates a new wildcard permission with this permission as parent
+     *
+     * @param name the name of the permission
+     * @return the new permission
+     */
     public Permission childWildcard(String name)
     {
         return this.childWildcard(name, FALSE);
     }
 
+    /**
+     * Creates a new wildcard permission with this permission as parent
+     *
+     * @param name the name of the permission
+     * @param def the default
+     * @return the new permission
+     */
     public Permission childWildcard(String name, PermDefault def)
     {
         return this.getChild(name, def, true);
@@ -105,7 +166,7 @@ public class Permission
     {
         for (Permission child : children)
         {
-            if (child.name.equals(name) && child.wildcard == wildcard)
+            if (child.baseName.equals(name) && child.wildcard == wildcard)
             {
                 if (child.def != def)
                 {
@@ -155,16 +216,58 @@ public class Permission
         }
     }
 
+    public void setParent(Permission permission)
+    {
+        if (nameParent != null)
+        {
+            nameParent.children.remove(this);
+            this.parents.remove(nameParent);
+        }
+
+        permission.checkForCircularDependency(this);
+
+        this.nameParent = permission;
+        permission.children.add(this);
+        this.parents.add(permission);
+
+        this.generateName();
+    }
+
     public boolean isAuthorized(Permissible permissible)
     {
-        expectNotNull(permissible, "The player may not be null!");
+        expectNotNull(permissible, "The permissible may not be null!");
 
-        return permissible.hasPermission(this.name + (this.isWildcard() ? ".*" : ""));
+        return permissible.hasPermission(this.getFullName());
     }
 
     public String getName()
     {
+        if (this.name == null)
+        {
+            this.generateName();
+        }
         return name;
+    }
+
+    protected String generateName()
+    {
+        String base = "";
+        if (this.nameParent != null)
+        {
+            base = this.nameParent.generateName() + ".";
+        }
+        this.name = base + this.baseName;
+        return this.name;
+    }
+
+    public String getFullName()
+    {
+        return this.getName() + (this.isWildcard() ? ".*" : "");
+    }
+
+    public String getBaseName()
+    {
+        return this.baseName;
     }
 
     public PermDefault getDefault()
@@ -209,57 +312,20 @@ public class Permission
         perm.parents.remove(this);
     }
 
-    @Override
-    public boolean equals(Object o)
+    public Permission detachFromParents()
     {
-        if (this == o)
+        this.nameParent = null;
+        for (Permission parent : this.parents)
         {
-            return true;
+            parent.children.remove(this);
+            parent.attached.remove(this);
         }
-        if (o == null || getClass() != o.getClass())
-        {
-            return false;
-        }
-
-        Permission that = (Permission)o;
-
-        if (wildcard != that.wildcard)
-        {
-            return false;
-        }
-        return !(name != null ? !name.equals(that.name) : that.name != null);
+        this.parents.clear();
+        return this;
     }
 
-    @Override
-    public int hashCode()
+    public static Permission detachedPermission(String permission, PermDefault permDefault)
     {
-        int result = name != null ? name.hashCode() : 0;
-        result = 31 * result + (wildcard ? 1 : 0);
-        return result;
-    }
-
-    public static Permission getFor(CubeCommand command)
-    {
-        if (command.getPermission() != null && !command.getPermission().isEmpty())
-        {
-            String[] parts = StringUtils.explode(".", command.getPermission());
-            if ("cubeengine".equalsIgnoreCase(parts[0]))
-            {
-                Permission perm = BASE;
-                for (int i = 1; i < parts.length; i++)
-                {
-                    if (i + 1 == parts.length) // last
-                    {
-                        return perm.child(parts[i]);
-                    }
-                    perm = perm.childWildcard(parts[i]);
-                }
-            }
-            else
-            {
-                throw new IllegalArgumentException("CubeCommand permission is not valid!");
-            }
-        }
-        return null;
+        return new Permission(null, permission, permDefault);
     }
 }

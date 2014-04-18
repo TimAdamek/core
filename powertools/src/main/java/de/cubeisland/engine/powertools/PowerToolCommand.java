@@ -18,6 +18,7 @@
 package de.cubeisland.engine.powertools;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -31,7 +32,6 @@ import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 
-import de.cubeisland.engine.core.command.ArgBounds;
 import de.cubeisland.engine.core.command.CommandContext;
 import de.cubeisland.engine.core.command.CommandSender;
 import de.cubeisland.engine.core.command.ContainerCommand;
@@ -39,11 +39,12 @@ import de.cubeisland.engine.core.command.parameterized.Flag;
 import de.cubeisland.engine.core.command.parameterized.ParameterizedContext;
 import de.cubeisland.engine.core.command.reflected.Alias;
 import de.cubeisland.engine.core.command.reflected.Command;
+import de.cubeisland.engine.core.command.reflected.Grouped;
+import de.cubeisland.engine.core.command.reflected.Indexed;
 import de.cubeisland.engine.core.user.User;
 import de.cubeisland.engine.core.util.ChatFormat;
 import de.cubeisland.engine.core.util.matcher.Match;
 
-import static de.cubeisland.engine.core.command.ArgBounds.NO_MAX;
 import static de.cubeisland.engine.core.util.formatter.MessageType.*;
 import static java.util.Arrays.asList;
 
@@ -58,19 +59,17 @@ public class PowerToolCommand extends ContainerCommand implements Listener
 
     public PowerToolCommand(Powertools module)
     {
-        super(module, "powertool", "Binding shortcuts to an item.", asList("pt"));
+        super(module, "powertool", "Binding shortcuts to an item.");
+        this.setAliases(new HashSet<>(asList("pt")));
         this.module = module;
-        this.getContextFactory().setArgBounds(new ArgBounds(0, NO_MAX));
+        // TODO this.getContextFactory().setArgBounds(new ArgBounds(0, NO_MAX));
 
-        this.delegateChild(new MultiContextFilter() {
+        this.delegateChild(new DelegatingContextFilter()
+        {
             @Override
-            public String getChild(CommandContext context)
+            public String delegateTo(CommandContext context)
             {
-                if (context.hasArg(0))
-                {
-                    return "add"; // acts as /pt add with -r flag
-                }
-                return "clear"; // /pt without params clears the tool
+                return context.hasArg(0) ? "add" : "clear";
             }
 
             @Override
@@ -89,7 +88,7 @@ public class PowerToolCommand extends ContainerCommand implements Listener
 
     @Alias(names = "ptc")
     @Command(desc = "Removes all commands from your powertool",
-             flags = @Flag(longName = "all", name = "a"), usage = "[-a]")
+             flags = @Flag(longName = "all", name = "a"))
     public void clear(ParameterizedContext context)
     {
         CommandSender sender = context.getSender();
@@ -120,9 +119,9 @@ public class PowerToolCommand extends ContainerCommand implements Listener
     }
 
     @Alias(names = "ptr")
-    @Command(names = {
-        "remove", "del", "delete", "rm"
-    }, desc = "Removes a command from your powertool", flags = @Flag(longName = "chat", name = "c"), usage = "[command] [-chat]", max = NO_MAX)
+    @Command(names = {"remove", "del", "delete", "rm"}, desc = "Removes a command from your powertool",
+             flags = @Flag(longName = "chat", name = "c"),
+             indexed = @Grouped(req = false, value = @Indexed("command"), greedy = true))
     public void remove(ParameterizedContext context)
     {
         if (context.getSender() instanceof User)
@@ -181,8 +180,8 @@ public class PowerToolCommand extends ContainerCommand implements Listener
     @Alias(names = "pta")
     @Command(desc = "Adds a command to your powertool", flags = {
         @Flag(longName = "chat", name = "c"),
-        @Flag(longName = "replace", name = "r")
-    }, usage = "<commandstring>", min = 1, max = NO_MAX)
+        @Flag(longName = "replace", name = "r")},
+             indexed = @Grouped(value = @Indexed("commandstring"), greedy = true))
     public void add(ParameterizedContext context)
     {
         CommandSender sender = context.getSender();

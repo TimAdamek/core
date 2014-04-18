@@ -28,6 +28,8 @@ import de.cubeisland.engine.core.command.CommandContext;
 import de.cubeisland.engine.core.command.ContainerCommand;
 import de.cubeisland.engine.core.command.reflected.Alias;
 import de.cubeisland.engine.core.command.reflected.Command;
+import de.cubeisland.engine.core.command.reflected.Grouped;
+import de.cubeisland.engine.core.command.reflected.Indexed;
 import de.cubeisland.engine.core.user.User;
 import de.cubeisland.engine.core.util.ChatFormat;
 import de.cubeisland.engine.core.util.matcher.Match;
@@ -108,8 +110,8 @@ public class LogCommands extends ContainerCommand
         else
         {
             context.sendTranslated(POSITIVE, "{integer} logs are currently queued!", size);
-            this.module.getLogManager().getQueryManager().logStatus();
         }
+        this.module.getLogManager().getQueryManager().logStatus();
     }
 
     private Material matchType(String type, boolean block)// or item
@@ -212,7 +214,7 @@ public class LogCommands extends ContainerCommand
         "player: Shows player-interacions only\n" +
         "kills: Shows kill-interactions only\n" +
         "block: Shows block-changes only",
-             usage = "[log-type]", max = 2)
+             indexed = @Grouped(req = false, value = @Indexed("log-type")))
     public void block(CommandContext context)
     {
         //TODO tabcompleter for logBlockTypes (waiting for CE-389)
@@ -243,7 +245,7 @@ public class LogCommands extends ContainerCommand
         "player: Shows player-interacions only\n" +
         "kills: Shows kill-interactions only\n" +
         "block: Shows block-changes only",
-             usage = "[log-type]", max = 2)
+             indexed = @Grouped(req = false, value = @Indexed("log-type")))
     public void tool(CommandContext context)
     {
         //TODO tabcompleter for logToolTypes (waiting for CE-389)

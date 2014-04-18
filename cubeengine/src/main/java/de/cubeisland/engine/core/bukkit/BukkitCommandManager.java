@@ -26,6 +26,7 @@ import org.bukkit.command.Command;
 import de.cubeisland.engine.core.Core;
 import de.cubeisland.engine.core.CubeEngine;
 import de.cubeisland.engine.core.bukkit.command.CommandInjector;
+import de.cubeisland.engine.core.bukkit.command.WrappedCubeCommand;
 import de.cubeisland.engine.core.command.AliasCommand;
 import de.cubeisland.engine.core.command.CommandFactory;
 import de.cubeisland.engine.core.command.CommandHolder;
@@ -92,6 +93,7 @@ public class BukkitCommandManager implements CommandManager
         {
             throw new IllegalArgumentException("The given command is already registered!");
         }
+        command.getContextFactory().calculateArgBounds();
         CubeCommand parentCommand = null;
         for (String parent : parents)
         {
@@ -117,10 +119,10 @@ public class BukkitCommandManager implements CommandManager
         {
             parentCommand.addChild(command);
         }
-        command.onRegister();
+
         if (!(command instanceof AliasCommand))
         {
-            command.updateGeneratedPermission();
+            command.registerPermission();
         }
 
         if (command instanceof CommandHolder)
@@ -179,9 +181,9 @@ public class BukkitCommandManager implements CommandManager
     public CubeCommand getCommand(String name)
     {
         Command command = this.injector.getCommand(name);
-        if (command != null && command instanceof CubeCommand)
+        if (command != null && command instanceof WrappedCubeCommand)
         {
-            return (CubeCommand)command;
+            return ((WrappedCubeCommand)command).getCommand();
         }
         return null;
     }

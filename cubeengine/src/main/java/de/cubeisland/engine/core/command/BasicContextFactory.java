@@ -17,24 +17,31 @@
  */
 package de.cubeisland.engine.core.command;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.Stack;
 
-import de.cubeisland.engine.core.command.exception.IncorrectUsageException;
+import de.cubeisland.engine.core.command.parameterized.CommandParameterIndexed;
 
 public class BasicContextFactory implements ContextFactory
 {
     private ArgBounds bounds;
+    private final LinkedHashMap<Integer, CommandParameterIndexed> indexedMap = new LinkedHashMap<>();
+    private int indexedCount = 0;
 
     public BasicContextFactory()
     {
-        this(new ArgBounds(0, 0));
+        this(Collections.<CommandParameterIndexed>emptyList());
     }
 
-    public BasicContextFactory(ArgBounds bounds)
+    public BasicContextFactory(List<CommandParameterIndexed> indexed)
     {
-        this.bounds = bounds;
+        this.bounds = new ArgBounds(indexed);
+        this.addIndexed(indexed);
     }
 
     @Override
@@ -43,28 +50,66 @@ public class BasicContextFactory implements ContextFactory
         return this.bounds;
     }
 
-    public void setArgBounds(ArgBounds newBounds)
+    @Override
+    public BasicContextFactory addIndexed(List<CommandParameterIndexed> indexedParams)
     {
-        this.bounds = newBounds;
+        if (indexedParams != null)
+        {
+            for (CommandParameterIndexed param : indexedParams)
+            {
+                this.addIndexed(param);
+            }
+        }
+        return this;
     }
 
     @Override
-    public BasicContext parse(CubeCommand command, CommandSender sender, Stack<String> labels, String[] commandLine)
+    public BasicContextFactory addIndexed(CommandParameterIndexed param)
     {
-        if (commandLine.length < this.getArgBounds().getMin())
-        {
-            throw new IncorrectUsageException("You've given too few arguments.");
-        }
-        if (this.getArgBounds().getMax() > ArgBounds.NO_MAX && commandLine.length > this.getArgBounds().getMax())
-        {
-            throw new IncorrectUsageException("You've given too many arguments.");
-        }
-        return new BasicContext(command, sender, labels, new LinkedList<>(Arrays.asList(commandLine)));
+        this.indexedMap.put(indexedCount++, param);
+        return this;
+    }
+
+    @Override
+    public BasicContextFactory removeLastIndexed()
+    {
+        this.indexedMap.remove(--indexedCount);
+        return this;
+    }
+
+    @Override
+    public CommandParameterIndexed getIndexed(int index)
+    {
+        return this.indexedMap.get(index);
+    }
+
+    @Override
+    public List<CommandParameterIndexed> getIndexedParameters()
+    {
+        return new ArrayList<>(this.indexedMap.values());
+    }
+
+    @Override
+    public BasicContext parse(CubeCommand command, CommandSender sender, Stack<String> labels, String[] rawArgs)
+    {
+        return new BasicContext(command, sender, labels, new LinkedList<>(Arrays.asList(rawArgs)));
+    }
+
+    @Override
+    public CommandContext tabCompleteParse(CubeCommand command, CommandSender sender, Stack<String> labels, String[] rawArgs)
+    {
+        return new BasicContext(command, sender, labels, new LinkedList<>(Arrays.asList(rawArgs)));
     }
 
     @Override
     public CommandContext parse(CubeCommand command, CommandContext context)
     {
         return new BasicContext(command, context.getSender(), context.getLabels(), context.getArgs());
+    }
+
+    @Override
+    public void calculateArgBounds()
+    {
+        this.bounds = new ArgBounds(new ArrayList<>(this.indexedMap.values()));
     }
 }

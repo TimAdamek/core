@@ -17,10 +17,15 @@
  */
 package de.cubeisland.engine.core.command;
 
-import java.util.LinkedList;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Stack;
 
+import org.bukkit.Bukkit;
+
 import de.cubeisland.engine.core.Core;
+import de.cubeisland.engine.core.command.exception.PermissionDeniedException;
+import de.cubeisland.engine.core.permission.Permission;
 import de.cubeisland.engine.core.user.User;
 import de.cubeisland.engine.core.util.formatter.MessageType;
 
@@ -30,10 +35,10 @@ public class BasicContext implements CommandContext
     private final CubeCommand command;
     private final CommandSender sender;
     private final Stack<String> labels;
-    private final LinkedList<String> args;
+    private final List<String> args;
     private final int argCount;
 
-    public BasicContext(CubeCommand command, CommandSender sender, Stack<String> labels, LinkedList<String> args)
+    public BasicContext(CubeCommand command, CommandSender sender, Stack<String> labels, List<String> args)
     {
         this.core = command.getModule().getCore();
         this.command = command;
@@ -105,9 +110,9 @@ public class BasicContext implements CommandContext
         return this.argCount > 0;
     }
 
-    public LinkedList<String> getArgs()
+    public List<String> getArgs()
     {
-        return new LinkedList<>(this.args);
+        return new ArrayList<>(this.args);
     }
 
     @Override
@@ -172,5 +177,14 @@ public class BasicContext implements CommandContext
     public User getUser(int i)
     {
         return this.getArg(i, User.class);
+    }
+
+    @Override
+    public void ensurePermission(Permission permission) throws PermissionDeniedException
+    {
+        if (!permission.isAuthorized(this.getSender()))
+        {
+            throw new PermissionDeniedException(permission);
+        }
     }
 }

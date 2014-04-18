@@ -22,13 +22,14 @@ import java.util.List;
 
 import org.bukkit.inventory.ItemStack;
 
-import de.cubeisland.engine.core.command.ArgBounds;
 import de.cubeisland.engine.core.command.CommandContext;
 import de.cubeisland.engine.core.command.ContainerCommand;
 import de.cubeisland.engine.core.command.parameterized.Flag;
 import de.cubeisland.engine.core.command.parameterized.ParameterizedContext;
 import de.cubeisland.engine.core.command.reflected.Alias;
 import de.cubeisland.engine.core.command.reflected.Command;
+import de.cubeisland.engine.core.command.reflected.Grouped;
+import de.cubeisland.engine.core.command.reflected.Indexed;
 import de.cubeisland.engine.core.user.User;
 import de.cubeisland.engine.core.util.FileUtil;
 
@@ -47,27 +48,20 @@ public class KitCommand extends ContainerCommand
         super(module, "kit", "Manages item-kits");
         this.module = module;
         this.manager = module.getKitManager();
-        this.getContextFactory().setArgBounds(new ArgBounds(0, 2));
-        this.delegateChild(new MultiContextFilter() {
+        // TODO this.getContextFactory().setArgBounds(new ArgBounds(0, 2));
+        this.delegateChild(new DelegatingContextFilter()
+        {
             @Override
-            public CommandContext filterContext(CommandContext context, String child)
+            public String delegateTo(CommandContext context)
             {
-                ParameterizedContext pContext = (ParameterizedContext)context;
-                return new ParameterizedContext(context.getCommand(), context.getSender(), context.getLabels(), context.getArgs(), pContext.getFlags(), pContext.getParams());
-            }
-
-            @Override
-            public String getChild(CommandContext context)
-            {
-                if (context.hasArg(0)) return "give";
-                return null;
+                return context.hasArg(0) ? "give" : null;
             }
         });
     }
 
     @Command(desc = "Creates a new kit with the items in your inventory.",
             flags = @Flag(longName = "toolbar", name = "t"),
-            usage = "<kitName> [-toolbar]", min = 1, max = 1)
+            indexed = @Grouped(@Indexed("kitname")))
     public void create(ParameterizedContext context)
     {
         User sender = null;
@@ -142,9 +136,11 @@ public class KitCommand extends ContainerCommand
     }
 
     @Alias(names = "kit")
-    @Command(desc = "Gives a set of items.", usage = "<kitname> [player]", min = 1, max = 2, flags = {
-        @Flag(longName = "all", name = "a"),
-        @Flag(longName = "force", name = "f")
+    @Command(desc = "Gives a set of items.",
+             indexed = {@Grouped(@Indexed("kitname")),
+                        @Grouped(req = false, value =  @Indexed("player"))},
+             flags = {@Flag(longName = "all", name = "a"),
+                      @Flag(longName = "force", name = "f")
     })
     public void give(ParameterizedContext context)
     {

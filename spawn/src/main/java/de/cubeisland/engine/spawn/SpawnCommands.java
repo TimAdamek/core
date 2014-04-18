@@ -30,7 +30,10 @@ import de.cubeisland.engine.core.command.parameterized.Completer;
 import de.cubeisland.engine.core.command.parameterized.Flag;
 import de.cubeisland.engine.core.command.parameterized.Param;
 import de.cubeisland.engine.core.command.parameterized.ParameterizedContext;
+import de.cubeisland.engine.core.command.parameterized.ParameterizedTabContext;
+import de.cubeisland.engine.core.command.reflected.Grouped;
 import de.cubeisland.engine.core.command.reflected.Command;
+import de.cubeisland.engine.core.command.reflected.Indexed;
 import de.cubeisland.engine.core.user.User;
 import de.cubeisland.engine.core.util.StringUtils;
 import de.cubeisland.engine.core.util.math.BlockVector3;
@@ -58,8 +61,15 @@ public class SpawnCommands
         manager = roles.getRolesManager();
     }
 
-    @Command(desc = "Changes the respawnpoint", max = 5,
-             usage = "[<role>|global] [<x> <y> <z>] [world]")
+    @Command(desc = "Changes the respawnpoint",
+             indexed = {@Grouped(req = false,
+                  value = @Indexed({"role","!global"})),
+                     @Grouped(req = false,
+                  value = {@Indexed("x"),
+                           @Indexed("y"),
+                           @Indexed("z"),}),
+                     @Grouped(req = false,
+                  value = @Indexed("world"))})
     public void setSpawn(CommandContext context)
     {
         if (!(context.getSender() instanceof User) && context.hasArg(4))
@@ -140,9 +150,9 @@ public class SpawnCommands
     }
 
     @Command(desc = "Teleport directly to the worlds spawn.",
-             usage = "[player]|* [world <world>] [role <role>]", max = 1,
+             indexed = @Grouped(value = @Indexed({"players","!*"}), req = false),
              params = {@Param(names = {"world", "w", "in"}, type = World.class),
-                       @Param(names = {"role", "r"}, type = String.class, completer = RoleCompleter.class)} ,
+                       @Param(names = {"role", "r"}, completer = RoleCompleter.class)} ,
              flags = @Flag(longName = "force", name = "f"))
     public void spawn(ParameterizedContext context)
     {
@@ -360,21 +370,23 @@ public class SpawnCommands
     public static class RoleCompleter implements Completer
     {
         @Override
-        public List<String> complete(CommandSender sender, String token)
+        public List<String> complete(ParameterizedTabContext context, String token)
         {
+            final CommandSender sender = context.getSender();
             List<String> roles = new ArrayList<>();
             if (sender instanceof User)
             {
-                if (((User)sender).get(RolesAttachment.class).getWorkingWorld() != null)
+                User user = (User)sender;
+                if (user.get(RolesAttachment.class).getWorkingWorld() != null)
                 {
-                    for (Role role : manager.getProvider(((User)sender).get(RolesAttachment.class).getWorkingWorld()).getRoles())
+                    for (Role role : manager.getProvider(user.get(RolesAttachment.class).getWorkingWorld()).getRoles())
                     {
                         roles.add(role.getName());
                     }
                 }
                 else
                 {
-                    for (Role role : manager.getProvider(((User)sender).getWorld()).getRoles())
+                    for (Role role : manager.getProvider(user.getWorld()).getRoles())
                     {
                         roles.add(role.getName());
                     }

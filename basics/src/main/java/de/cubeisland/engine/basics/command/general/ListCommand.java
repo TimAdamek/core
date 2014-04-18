@@ -61,7 +61,7 @@ public class ListCommand extends CubeCommand
     }
 
     @Override
-    public CommandResult run(CommandContext context) throws Exception
+    public CommandResult run(CommandContext context)
     {
         final CommandSender sender = context.getSender();
         final SortedSet<User> users = new TreeSet<>(USER_COMPARATOR);
