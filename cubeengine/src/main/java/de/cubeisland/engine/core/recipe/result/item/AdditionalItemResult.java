@@ -15,18 +15,32 @@
  * You should have received a copy of the GNU General Public License
  * along with CubeEngine.  If not, see <http://www.gnu.org/licenses/>.
  */
-package de.cubeisland.engine.core.recipe;
-
-import java.util.Map;
+package de.cubeisland.engine.core.recipe.result.item;
 
 import org.bukkit.block.BlockState;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 
-public interface WorkbenchIngredients extends Ingredients
-{
-    Map<Integer, ItemStack> getIngredientResults(Player player, BlockState block, ItemStack[] matrix);
-    boolean check(Player player, ItemStack[] matrix);
+import de.cubeisland.engine.core.recipe.NoMoreSpaceException;
+import de.cubeisland.engine.core.recipe.result.logic.Result;
+import de.cubeisland.engine.core.util.InventoryUtil;
 
-    int getSize();
+public class AdditionalItemResult extends Result
+{
+    private ItemStack item;
+
+    public AdditionalItemResult(ItemStack item)
+    {
+        this.item = item;
+    }
+
+    @Override
+    public ItemStack getResult(Player player, BlockState block, ItemStack itemStack)
+    {
+        if (InventoryUtil.addItemsToInventory(player.getInventory(), this.item))
+        {
+            return itemStack;
+        }
+        throw new NoMoreSpaceException();
+    }
 }

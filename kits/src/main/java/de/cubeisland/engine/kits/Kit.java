@@ -116,7 +116,7 @@ public class Kit
             }
         }
         List<ItemStack> list = this.getItems();
-        if (InventoryUtil.giveItemsToUser(user, list.toArray(new ItemStack[list.size()])))
+        if (InventoryUtil.addItemsToInventory(user.getInventory(), list.toArray(new ItemStack[list.size()])))
         {
             this.dsl.insertInto(TableKitsGiven.TABLE_KITS, TableKitsGiven.TABLE_KITS.KITNAME, TableKitsGiven.TABLE_KITS.USERID, TableKitsGiven.TABLE_KITS.AMOUNT).values(this.getKitName(), user.getEntity().getKey(), 1)
                     .onDuplicateKeyUpdate().set(TableKitsGiven.TABLE_KITS.AMOUNT, TableKitsGiven.TABLE_KITS.AMOUNT.add(1)).execute();

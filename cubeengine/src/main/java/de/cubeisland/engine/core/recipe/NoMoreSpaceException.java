@@ -17,5 +17,6 @@
  */
 package de.cubeisland.engine.core.recipe;
 
-public class InvalidIngredientsException extends RecipeException
-{}
+public class NoMoreSpaceException extends RecipeException
+{
+}

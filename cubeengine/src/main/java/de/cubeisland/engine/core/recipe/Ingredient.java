@@ -68,16 +68,16 @@ public class Ingredient
      *
      * @param player
      * @param block
-     * @param itemStack
+     * @param item
      * @return
      */
-    public final ItemStack getResult(Player player, BlockState block, ItemStack itemStack)
+    public final ItemStack getResult(Player player, BlockState block, ItemStack item)
     {
         if (result == null)
         {
             return null;
         }
-        return result.getResult(player, block, itemStack);
+        return result.getResult(player, block, item);
     }
 
     public final LinkedList<MaterialData> getMaterials()

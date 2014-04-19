@@ -222,7 +222,7 @@ public class ShapedIngredients implements WorkbenchIngredients
                     Ingredient ingredient = this.getIngredientAt(x, z);
                     if (ingredient != null)
                     {
-                        map.put(3 * (offSet.x + x) + offSet.z + z, ingredient.getResult(player, block, item));
+                        map.put(3 * (offSet.x + x) + offSet.z + z, ingredient.getResult(player, block, item.clone()));
                     } // else ignore because empty
                 }
                 // else no ingredient here

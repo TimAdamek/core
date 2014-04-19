@@ -113,7 +113,7 @@ public class ShapelessIngredients implements WorkbenchIngredients
             {
                 throw new InvalidIngredientsException();
             }
-            ItemStack result = ingredient.getResult(player, block, matrix[index]);
+            ItemStack result = ingredient.getResult(player, block, matrix[index].clone());
             if (result != null)
             {
                 map.put(index, result);

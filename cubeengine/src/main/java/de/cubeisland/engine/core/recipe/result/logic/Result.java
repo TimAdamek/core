@@ -23,6 +23,7 @@ import org.bukkit.inventory.ItemStack;
 
 import de.cubeisland.engine.core.recipe.condition.general.ChanceCondition;
 import de.cubeisland.engine.core.recipe.condition.logic.Condition;
+import de.cubeisland.engine.core.recipe.result.item.AmountResult;
 
 /**
  * Modifies a resulting ItemStack
@@ -44,13 +45,17 @@ public abstract class Result
 
     public final Result withChance(float chance)
     {
-
         return new ConditionResult(ChanceCondition.of(chance), this);
     }
 
     public final Result withCondition(Condition condition)
     {
         return new ConditionResult(condition, this);
+    }
+
+    public final Result reduceByOne()
+    {
+        return this.and(AmountResult.remove(1));
     }
 
     // cloneingredient (data/amount/enchants/name/lore/special(leatherdye/firework/book/skull...)/allmeta(ench/name/lore/special)/all(allmeta/data/amount))

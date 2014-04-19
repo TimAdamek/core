@@ -26,7 +26,6 @@ import org.bukkit.World;
 import org.bukkit.World.Environment;
 import org.bukkit.WorldCreator;
 import org.bukkit.WorldType;
-import org.bukkit.block.Biome;
 import org.bukkit.event.Listener;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.ShapedRecipe;
@@ -34,7 +33,6 @@ import org.bukkit.inventory.meta.ItemMeta;
 
 import de.cubeisland.engine.core.module.Module;
 import de.cubeisland.engine.core.recipe.CubeFurnaceRecipe;
-import de.cubeisland.engine.core.recipe.CubeRecipe;
 import de.cubeisland.engine.core.recipe.CubeWorkbenchRecipe;
 import de.cubeisland.engine.core.recipe.FuelIngredient;
 import de.cubeisland.engine.core.recipe.FurnaceIngredients;
@@ -42,19 +40,12 @@ import de.cubeisland.engine.core.recipe.Ingredient;
 import de.cubeisland.engine.core.recipe.RecipeManager;
 import de.cubeisland.engine.core.recipe.ShapedIngredients;
 import de.cubeisland.engine.core.recipe.ShapelessIngredients;
-import de.cubeisland.engine.core.recipe.condition.general.BiomeCondition;
-import de.cubeisland.engine.core.recipe.condition.general.GamemodeCondition;
 import de.cubeisland.engine.core.recipe.condition.ingredient.AmountCondition;
-import de.cubeisland.engine.core.recipe.condition.ingredient.DurabilityCondition;
 import de.cubeisland.engine.core.recipe.condition.ingredient.MaterialCondition;
 import de.cubeisland.engine.core.recipe.condition.ingredient.NameCondition;
-import de.cubeisland.engine.core.recipe.effect.CommandEffect;
-import de.cubeisland.engine.core.recipe.effect.ExplodeEffect;
-import de.cubeisland.engine.core.recipe.result.EffectResult;
+import de.cubeisland.engine.core.recipe.result.item.AdditionalItemResult;
 import de.cubeisland.engine.core.recipe.result.item.AmountResult;
-import de.cubeisland.engine.core.recipe.result.item.DurabilityResult;
 import de.cubeisland.engine.core.recipe.result.item.ItemStackResult;
-import de.cubeisland.engine.core.recipe.result.item.KeepResult;
 import de.cubeisland.engine.core.recipe.result.item.LoreResult;
 import de.cubeisland.engine.core.recipe.result.item.NameResult;
 import de.cubeisland.engine.core.util.ChatFormat;
@@ -159,60 +150,21 @@ public class Mystcube extends Module implements Listener
                                                                                                "&ewaiting to be written"))
                                           ).allowOldRecipe(true));
 
+
+        // TODO remove test
+        recipeManager.registerRecipe(this, new CubeWorkbenchRecipe(new ShapelessIngredients(Ingredient.withCondition(MaterialCondition.of(Material.SANDSTONE).and(AmountCondition.more(2))).withResult(AmountResult.remove(2))),
+                                                                   new ItemStackResult(Material.SAND).and(AmountResult.set(6))).withPreview(
+                                                                   new ItemStackResult(Material.SAND).and(
+                                                                       AmountResult.set(6).and(LoreResult.of(
+                                                                           "Consumes 2 Sandstone")))));
+
+        recipeManager.registerRecipe(this, new CubeWorkbenchRecipe(new ShapelessIngredients(
+            Ingredient.withMaterial(Material.COOKIE),
+            Ingredient.withMaterial(Material.INK_SACK),
+            Ingredient.withMaterial(Material.WOOL).withResult(new AdditionalItemResult(new ItemStack(Material.STRING, 1)).reduceByOne())),
+         new ItemStackResult(Material.COOKIE).and(NameResult.of("Black Cookie"))));
+
         this.getCore().getEventManager().registerListener(this, this);
-
-        // TODO remove RecipeManager TEST
-
-        CubeRecipe recipe = new CubeWorkbenchRecipe(
-            new ShapelessIngredients(Ingredient.withMaterial(Material.PAPER),
-                                     Ingredient.withMaterial(Material.SAND).withResult(
-                                         new KeepResult().withCondition(new BiomeCondition(Biome.DESERT, Biome.DESERT_HILLS))
-                                                         .withChance(0.8f))),
-            new ItemStackResult(Material.PAPER).and(NameResult.of("Sandpaper")).withChance(0.99f).
-                or(new ItemStackResult(Material.PAPER).and(NameResult.of("Fine Sandpaper")).
-                    and(new EffectResult(new CommandEffect("broadcast A lucky Player crafted Fine SandPaper!"))).
-                                          and(new EffectResult(ExplodeEffect.ofSafeTnt().force(1f)))))
-            .withPreview(new ItemStackResult(Material.PAPER).
-                            and(NameResult.of("Sandpaper")).
-                            and(LoreResult.of("1% Chance to get Fine Sandpaper",
-                                              "80% Chance to keep Sand",
-                                              "when crafting in Desert Biome")));
-
-
-
-
-        recipeManager.registerRecipe(this, recipe);
-
-        recipe =
-        new CubeWorkbenchRecipe(new ShapedIngredients("p p"," s ","p p")
-                                .setIngredient('p', Ingredient.withCondition(new MaterialCondition(Material.PAPER).and(NameCondition.of("Sandpaper")))
-                                              .withResult(new ItemStackResult(Material.PAPER).and(NameResult.of("Used SandPaper")))
-                                              )
-                                .setIngredient('s', Ingredient.withMaterial(Material.SANDSTONE)),
-                            new ItemStackResult(new ItemStack(Material.SAND, 4)));
-        recipeManager.registerRecipe(this, recipe);
-
-        ShapelessIngredients ingredients = new ShapelessIngredients(Ingredient.withCondition(
-            MaterialCondition.of(Material.WOOL).and(DurabilityCondition.exact((short)14)))); // RED WOOL
-        ingredients.addIngredient(Ingredient.withCondition(MaterialCondition.of(Material.BED, Material.RED_MUSHROOM,
-                        Material.TNT, Material.REDSTONE, Material.REDSTONE_BLOCK, Material.REDSTONE_ORE, Material.REDSTONE_TORCH_ON,
-                        Material.NETHERRACK, Material.NETHER_BRICK, Material.NETHER_BRICK_ITEM, Material.NETHER_BRICK_STAIRS,
-                        Material.NETHER_FENCE, Material.NETHER_STALK, Material.APPLE, Material.MELON, Material.RAW_BEEF,
-                        Material.SPIDER_EYE, Material.FERMENTED_SPIDER_EYE, Material.RECORD_4)));
-        recipeManager.registerRecipe(this,
-                                          new CubeWorkbenchRecipe(ingredients,
-                                          new ItemStackResult(Material.WOOL).and(DurabilityResult.set((short)14)).
-                                              and(NameResult.of("&cVery Red Wool")))
-                                         );
-
-        recipeManager.registerRecipe(this, new CubeWorkbenchRecipe(
-            new ShapedIngredients(" x ", "   ", "x x")
-                            .setIngredient('x', Ingredient.withCondition(MaterialCondition.of(Material.IRON_INGOT))),
-            new ItemStackResult(Material.GOLD_INGOT).and(AmountResult.set(3)))
-            .withCondition(GamemodeCondition.creative()).
-            withPreview(new ItemStackResult(Material.GOLD_INGOT).and(LoreResult
-                                                                         .of("&eYour creative mode", "&eis so awesome, you can", "&econvert iron to gold"))
-                                                                .and(AmountResult.set(3))));
     }
 
     // Blank Book Kortee'nea

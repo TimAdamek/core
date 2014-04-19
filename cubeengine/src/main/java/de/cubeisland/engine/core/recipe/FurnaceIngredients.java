@@ -94,7 +94,7 @@ public class FurnaceIngredients implements Ingredients
 
     public ItemStack getIngredientResult(ItemStack bukkitResult, BlockState block)
     {
-        return this.smeltable.getResult(null, block, bukkitResult);
+        return this.smeltable.getResult(null, block, new ItemStack(bukkitResult));
     }
 
     public boolean hasFuel(FuelIngredient customFuel)

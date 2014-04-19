@@ -24,13 +24,10 @@ import java.util.Map;
 import org.bukkit.Bukkit;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.PlayerInventory;
-
-import de.cubeisland.engine.core.user.User;
 
 public class InventoryUtil
 {
-    public static boolean giveItemsToUser(User user, ItemStack... items)
+    public static boolean addItemsToInventory(Inventory inventory, ItemStack... items)
     {
         List<ItemStack> list = new ArrayList<>();
         for (ItemStack item : items)
@@ -57,12 +54,11 @@ public class InventoryUtil
             }
         }
         items = list.toArray(new ItemStack[list.size()]);
-        PlayerInventory inventory = user.getInventory();
-        ItemStack[] oldInventory = inventory.getContents();
+        ItemStack[] oldInventory = deepClone(inventory.getContents());
         Map map = inventory.addItem(items);
         if (!map.isEmpty())
         {
-            user.getInventory().setContents(oldInventory);
+            inventory.setContents(oldInventory);
             return false;
         }
         return true;
@@ -75,11 +71,11 @@ public class InventoryUtil
                 ? Bukkit.createInventory(null, inventory.getType())
                 : Bukkit.createInventory(null, inventory.getSize());
 
-        inv.setContents(inventory.getContents().clone());
+        inv.setContents(deepClone(inventory.getContents()));
         Map map;
         for (ItemStack item : items)
         {
-            map = inv.addItem(new ItemStack(item));
+            map = inv.addItem(item.clone());
             if (!map.isEmpty())
             {
                 return false;
@@ -88,13 +84,26 @@ public class InventoryUtil
         return true;
     }
 
+    public static ItemStack[] deepClone(ItemStack[] matrix)
+    {
+        ItemStack[] clone = matrix.clone();
+        for (int i = 0 ; i < clone.length ; i++)
+        {
+            if (clone[i] != null)
+            {
+                clone[i] = clone[i].clone();
+            }
+        }
+        return clone;
+    }
+
     public static int getMissingSpace(Inventory inventory, ItemStack... items)
     {
         Inventory inv =
                 inventory.getSize() <= 27
                         ? Bukkit.createInventory(null, inventory.getType())
                         : Bukkit.createInventory(null, inventory.getSize());
-        inv.setContents(inventory.getContents().clone());
+        inv.setContents(deepClone(inventory.getContents()));
         Map<Integer,ItemStack> map;
         int missingPlace = 0;
         for (ItemStack item : items)

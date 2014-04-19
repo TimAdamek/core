@@ -21,11 +21,9 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Set;
 
 import org.bukkit.Bukkit;
-import org.bukkit.block.BlockState;
 import org.bukkit.entity.HumanEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -52,6 +50,8 @@ public class RecipeManager implements Listener
     protected Map<Module, Set<CubeRecipe>> recipes = new HashMap<>();
     protected Set<CubeWorkbenchRecipe> workbenchRecipes = new HashSet<>();
     protected Set<CubeFurnaceRecipe> furnaceRecipes = new HashSet<>();
+
+    private Map<Player, CraftingHandler> crafting = new HashMap<>();
 
     protected Map<CubeRecipe, Pair<Set<Recipe>, Boolean>> replaceMap = new HashMap<>();
 
@@ -231,7 +231,7 @@ public class RecipeManager implements Listener
     {
         if (recipe.matchesConditions(player, matrix))
         {
-            Craft craft = this.crafting.get(player);
+            CraftingHandler craft = this.crafting.get(player);
             if (craft == null)
             {
                 System.out.println("Prepare Craft");
@@ -246,6 +246,11 @@ public class RecipeManager implements Listener
         }
 
         Pair<Set<Recipe>, Boolean> pair = this.replaceMap.get(recipe);
+        if (pair == null)
+        {
+            event.getInventory().setResult(null);
+            return;
+        }
         if (pair.getRight())
         {
             ItemStack result = null;
@@ -266,47 +271,6 @@ public class RecipeManager implements Listener
         }
         System.out.print("No more match!");
     }
-
-    private ItemStack[] reduceMatrix(ItemStack[] matrix)
-    {
-        if (matrix == null)
-        {
-            return null;
-        }
-        for (ItemStack item : matrix) // reduce
-        {
-            if (item != null)
-            {
-                int amount = item.getAmount() - 1;
-                item.setAmount(amount < 0 ? 0 : amount);
-            }
-        }
-        return matrix;
-    }
-
-    private boolean reduceMyMatrix(ItemStack[] matrix, CubeWorkbenchRecipe recipe, Player player, BlockState block)
-    {
-        try
-        {
-            this.reduceMatrix(matrix);
-            Map<Integer, ItemStack> ingredientResults = recipe.getIngredientResults(player, block, matrix);
-            for (Entry<Integer, ItemStack> entry : ingredientResults.entrySet())
-            {
-                if (entry.getValue() != null)
-                {
-                    matrix[entry.getKey()] = entry.getValue();
-                }
-            }
-        }
-        catch (InvalidIngredientsException e)
-        {
-            System.out.print("STOP Shift CRAFT");
-            return false;
-        }
-        return true;
-    }
-
-    private Map<Player, Craft> crafting = new HashMap<>();
 
 
 
@@ -338,39 +302,24 @@ public class RecipeManager implements Listener
 
     private void craft(CraftItemEvent event, final Player player, final CubeWorkbenchRecipe recipe)
     {
-        CraftingInventory table = event.getInventory();
-        System.out.println("Craft");
-        Craft.showMatrix(table.getMatrix());
+        final CraftingInventory table = event.getInventory();
+        System.out.println("Start Craft");
         if (recipe.matchesConditions(player, table.getMatrix()))
         {
-            this.crafting.put(player, new Craft(table.getMatrix(), player, recipe, event.getAction() == MOVE_TO_OTHER_INVENTORY));
-            table.setResult(recipe.getResult(player, null)); // TODO block
-            final Map<Integer, ItemStack> ingredientResults = recipe.getIngredientResults(player, null, table.getMatrix()); // TODO block
-            if (!ingredientResults.isEmpty() || event.getAction() == MOVE_TO_OTHER_INVENTORY)
+            this.crafting.put(player, new CraftingHandler(core, event, table, player, recipe, event.getAction() == MOVE_TO_OTHER_INVENTORY));
+            if (event.isCancelled())
             {
-                recipe.runEffects(core, player);
-                final CraftingInventory inventory = table;
-                core.getTaskManager().runTaskDelayed(core.getModuleManager().getCoreModule(),
-                                                     new Runnable()
-                                                     {
-                                                         @Override
-                                                         public void run()
-                                                         {
-                                                             Craft craft = crafting.remove(player);
-                                                             craft.finalize(inventory);
-                                                         }
-                                                     }, 1);
+                this.crafting.remove(player);
+                return;
             }
-            core.getTaskManager().runTaskDelayed(core.getModuleManager().getCoreModule(),
-                                                 new Runnable()
-                                                 {
-                                                     @Override
-                                                     public void run()
-                                                     {
-                                                         player.updateInventory();
-                                                     }
-                                                 }, 2);
-
+            core.getTaskManager().runTaskDelayed(core.getModuleManager().getCoreModule(), new Runnable()
+            {
+                @Override
+                public void run()
+                {
+                    crafting.remove(player).finishCrafting();
+                }
+            }, 1);
             return;
         }
         Pair<Set<Recipe>, Boolean> pair = this.replaceMap.get(recipe);
