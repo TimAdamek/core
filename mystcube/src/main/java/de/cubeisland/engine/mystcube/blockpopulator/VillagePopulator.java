@@ -30,11 +30,14 @@ public class VillagePopulator extends AbstractBlockPopulator
     @Override
     public void populate(CraftWorld world, Random random, Chunk source)
     {
-        WorldGenVillageStart start = new WorldGenVillageStart(world.getHandle(), random, source.getX(), source.getZ(), 0);
-        int x = (source.getX() << 4) + 8;
-        int z = (source.getZ() << 4) + 8;
-        final int RADIUSVALUE = 500;
-        StructureBoundingBox sbb = new StructureBoundingBox(x - RADIUSVALUE, z - RADIUSVALUE, x + RADIUSVALUE, z + RADIUSVALUE);
-        start.a(world.getHandle(), random, sbb);
+        if (source.equals(world.getSpawnLocation().getChunk()))
+        {
+            WorldGenVillageStart start = new WorldGenVillageStart(world.getHandle(), random, source.getX(), source.getZ(), 0);
+            int x = (source.getX() << 4) + 8;
+            int z = (source.getZ() << 4) + 8;
+            final int RADIUSVALUE = 500;
+            StructureBoundingBox sbb = new StructureBoundingBox(x - RADIUSVALUE, z - RADIUSVALUE, x + RADIUSVALUE, z + RADIUSVALUE);
+            start.a(world.getHandle(), random, sbb);
+        }
     }
 }

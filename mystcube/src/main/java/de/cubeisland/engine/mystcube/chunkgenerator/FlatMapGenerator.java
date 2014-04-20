@@ -17,11 +17,15 @@
  */
 package de.cubeisland.engine.mystcube.chunkgenerator;
 
+import java.util.List;
 import java.util.Random;
 
 import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.block.Biome;
+import org.bukkit.generator.BlockPopulator;
+
+import de.cubeisland.engine.mystcube.blockpopulator.VillagePopulator;
 
 public class FlatMapGenerator extends AbstractWorldGenerator
 {
@@ -35,5 +39,13 @@ public class FlatMapGenerator extends AbstractWorldGenerator
         layer = this.generateLayers(result, Material.SANDSTONE, layer, 5);
         this.generateLayers(result, Material.SMOOTH_BRICK, layer, 1);
         this.setBiomeForChunk(biomes, Biome.DESERT);
+    }
+
+    @Override
+    public List<BlockPopulator> getDefaultPopulators(World world)
+    {
+        List<BlockPopulator> defaultPopulators = super.getDefaultPopulators(world);
+        defaultPopulators.add(new VillagePopulator());
+        return defaultPopulators;
     }
 }

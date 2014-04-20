@@ -18,7 +18,6 @@
 package de.cubeisland.engine.mystcube;
 
 import java.util.Arrays;
-import java.util.Random;
 
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
@@ -49,12 +48,17 @@ import de.cubeisland.engine.core.recipe.result.item.ItemStackResult;
 import de.cubeisland.engine.core.recipe.result.item.LoreResult;
 import de.cubeisland.engine.core.recipe.result.item.NameResult;
 import de.cubeisland.engine.core.util.ChatFormat;
-import de.cubeisland.engine.mystcube.blockpopulator.VillagePopulator;
 import de.cubeisland.engine.mystcube.chunkgenerator.FlatMapGenerator;
 
 public class Mystcube extends Module implements Listener
 {
     private MystcubeConfig config;
+
+    @Override
+    public void onLoad()
+    {
+        this.getCore().getWorldManager().registerGenerator(this, "flat", new FlatMapGenerator());
+    }
 
     @Override
     public void onStartupFinished()
@@ -71,8 +75,6 @@ public class Mystcube extends Module implements Listener
             world.setAnimalSpawnLimit(0);
             world.setMonsterSpawnLimit(0);
             world.setSpawnFlags(false, false);
-
-            new VillagePopulator().populate(world, new Random(), world.getSpawnLocation().getChunk());
         }
     }
 
@@ -174,9 +176,4 @@ public class Mystcube extends Module implements Listener
     // Ink: lem // Use brewing if possible (water glowstone redstone inksack) (using weakness / slowness or no effect)
     // potion data 32 = thick potion
 
-    @Override
-    public void onLoad()
-    {
-        this.getCore().getWorldManager().registerGenerator(this, "flat", new FlatMapGenerator());
-    }
 }

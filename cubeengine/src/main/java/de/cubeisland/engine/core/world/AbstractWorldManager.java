@@ -120,7 +120,7 @@ public abstract class AbstractWorldManager implements WorldManager
 
     public synchronized void registerGenerator(Module module, String id, ChunkGenerator generator)
     {
-        expectNotNull(id, "The ID must nto be null!");
+        expectNotNull(id, "The ID must not be null!");
         expectNotNull(generator, "The generator must not be null!");
 
         Map<String, ChunkGenerator> moduleGenerators = this.generatorMap.get(module.getId());
