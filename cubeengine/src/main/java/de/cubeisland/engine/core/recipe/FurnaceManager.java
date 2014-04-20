@@ -50,9 +50,9 @@ public class FurnaceManager implements Listener
     protected RecipeManager manager;
 
     protected Map<Location, FuelIngredient> fuelMap = new HashMap<>();
-    protected Map<Location, CustomSmelting> smeltMap = new HashMap<>();
+    protected Map<Location, SmeltingHandler> smeltMap = new HashMap<>();
 
-    protected Map<Location, Triplet<CustomSmelting, ItemStack, Integer>> resultMap = new HashMap<>();
+    protected Map<Location, Triplet<SmeltingHandler, ItemStack, Integer>> resultMap = new HashMap<>();
 
     public FurnaceManager(RecipeManager manager)
     {
@@ -107,7 +107,6 @@ public class FurnaceManager implements Listener
         {
             final Location location = event.getBlock().getLocation();
             final Furnace furnace = (Furnace)event.getBlock().getState();
-            fuelMap.remove(location);
             boolean invalidRecipe = false;
             for (CubeFurnaceRecipe recipe : this.matchRecipes(furnace.getInventory().getSmelting()))
             {
@@ -118,13 +117,10 @@ public class FurnaceManager implements Listener
                     if (furnace.getInventory().getResult() != null && !furnace.getInventory().getResult().isSimilar(recipe.getPreview(null, furnace)))
                     {
                         System.out.print("Try new Fuel | Result Blocked");
+                        fuelMap.remove(location);
                         return;
                     }
-                    event.setBurnTime(fuel.getLeft().fuelTicks);
-                    fuelMap.put(location, fuel.getLeft());
-                    System.out.print("New Fuel | BurnTime +" + event.getBurnTime());
-                    this.startSmelting(recipe, furnace, fuel.getLeft(), event.getBurnTime());
-                    // TODO fuelResult
+                    handleFuelBurn(event, location, furnace, recipe, fuel);
                     return;
                 }
                 invalidRecipe = true;
@@ -136,13 +132,29 @@ public class FurnaceManager implements Listener
         }
     }
 
+    private void handleFuelBurn(FurnaceBurnEvent event, Location location, Furnace furnace, CubeFurnaceRecipe recipe,
+                                Pair<FuelIngredient, Boolean> fuel)
+    {
+        SmeltingHandler smeltingHandler = smeltMap.get(location);
+        if (smeltingHandler != null && smeltingHandler.isDoneNextTick())
+        {
+            event.setCancelled(true);
+            return;
+        }
+        event.setBurnTime(fuel.getLeft().fuelTicks);
+        fuelMap.put(location, fuel.getLeft());
+        System.out.print("New Fuel | BurnTime +" + event.getBurnTime());
+        this.startSmelting(recipe, furnace, fuel.getLeft(), event.getBurnTime());
+        // TODO fuelResult
+    }
+
     private void startSmelting(final CubeFurnaceRecipe recipe, final Furnace furnace, final FuelIngredient fuel, int furnaceBurnTime)
     {
         Location location = furnace.getLocation();
-        CustomSmelting smelting = smeltMap.get(location);
+        SmeltingHandler smelting = smeltMap.get(location);
         if (smelting == null)
         {
-            smeltMap.put(location, new CustomSmelting(FurnaceManager.this, furnace, recipe, fuel)
+            smeltMap.put(location, new SmeltingHandler(FurnaceManager.this, furnace, recipe, fuel)
                 .updateLastFuelTick(furnaceBurnTime));
             System.out.print("#" +smeltMap.get(location).N + " Start Smelt | Fuel " + furnaceBurnTime + " | " + smeltMap.get(location).curSmeltTime +
                 "/" + smeltMap.get(location).totalSmeltTime);
@@ -168,10 +180,10 @@ public class FurnaceManager implements Listener
     {
         if (endFuel <= 0)
         {
-            System.out.print("Waiting for new Fuel to restart!");
+            System.out.print("No Fuel burning. No Restart");
             return;
         }
-        final CustomSmelting smelt = smeltMap.get(location);
+        final SmeltingHandler smelt = smeltMap.get(location);
         if (smelt == null || smelt.isDone())
         {
             this.manager.core.getTaskManager().runTask(coreModule,
@@ -260,7 +272,7 @@ public class FurnaceManager implements Listener
         {
             final Furnace furnace = (Furnace)event.getBlock().getState();
             final Location location = furnace.getLocation();
-            CustomSmelting smelt = this.smeltMap.remove(location);
+            SmeltingHandler smelt = this.smeltMap.remove(location);
             if (smelt == null)
             {
                 if (fuelMap.get(location) != null)
@@ -299,7 +311,7 @@ public class FurnaceManager implements Listener
                 || furnace.getInventory().getResult().isSimilar(result))
             {
                 event.setResult(result);
-                Triplet<CustomSmelting, ItemStack, Integer> results = this.resultMap.get(location);
+                Triplet<SmeltingHandler, ItemStack, Integer> results = this.resultMap.get(location);
                 if (results == null)
                 {
                     results = new Triplet<>(smelt, event.getSource().clone(), 0);
@@ -323,7 +335,14 @@ public class FurnaceManager implements Listener
                        @Override
                        public void run()
                        {
-                           furnace.getInventory().setSmelting(ingredientResult);
+                           if (ingredientResult.getAmount() == 0)
+                           {
+                               furnace.getInventory().setSmelting(null);
+                           }
+                           else
+                           {
+                               furnace.getInventory().setSmelting(ingredientResult);
+                           }
                            for (HumanEntity humanEntity : furnace.getInventory().getViewers())
                            {
                                if (humanEntity instanceof Player)
@@ -464,7 +483,7 @@ public class FurnaceManager implements Listener
                 }
                 Location location = furnace.getLocation();
                 FuelIngredient customFuel = this.fuelMap.get(location);
-                CustomSmelting customSmelting = this.smeltMap.get(location);
+                SmeltingHandler customSmelting = this.smeltMap.get(location);
                 if (customSmelting != null)
                 {
                     if (customSmelting.recipe.ingredients.isSmeltable(newItem))
@@ -534,19 +553,22 @@ public class FurnaceManager implements Listener
             return;
         }
         Location location = furnace.getLocation();
-        Triplet<CustomSmelting, ItemStack, Integer> smelted = this.resultMap.remove(location);
+        Triplet<SmeltingHandler, ItemStack, Integer> smelted = this.resultMap.remove(location);
         if (smelted != null)
         {
             System.out.print("Extract Item Prep");
             int times = smelted.getThird();
             ItemStack result = smelted.getFirst().recipe.getResult((Player)event.getWhoClicked(), furnace);
             result.setAmount(result.getAmount() * times);
+            // TODO diff results
             if (event.getSlotType() == SlotType.RESULT)
             {
                 switch (event.getAction())
                 {
                 case PICKUP_HALF:
                 case PICKUP_ALL:
+                case PICKUP_SOME:
+                case PICKUP_ONE:
                 case MOVE_TO_OTHER_INVENTORY:
                 case HOTBAR_SWAP:
                     furnace.getInventory().setResult(result);
@@ -571,12 +593,13 @@ public class FurnaceManager implements Listener
     @EventHandler
     public void onExtractItem(FurnaceExtractEvent event)
     {
+        // TODO change item (is it possible at all?)
         System.out.print("Extracted Item!");
         if (event.getBlock().getState() instanceof Furnace)
         {
             Furnace furnace = (Furnace)event.getBlock().getState();
             Location location = furnace.getLocation();
-            CustomSmelting smelting = this.smeltMap.get(location);
+            SmeltingHandler smelting = this.smeltMap.get(location);
             if (smelting == null || smelting.isDone())
             {
                 CubeFurnaceRecipe recipe = this.findRecipeFor(furnace);

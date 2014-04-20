@@ -25,7 +25,7 @@ import de.cubeisland.engine.core.module.CoreModule;
 
 import static de.cubeisland.engine.core.recipe.FuelIngredient.DEFAULT_SMELT_TIME;
 
-public class CustomSmelting
+public class SmeltingHandler
 {
     private final Location location;
     private final CoreModule coreModule;
@@ -50,7 +50,7 @@ public class CustomSmelting
 
     public int N = 0; // TODO make private
 
-    public CustomSmelting(FurnaceManager manager, Furnace furnace, CubeFurnaceRecipe recipe, FuelIngredient fuel)
+    public SmeltingHandler(FurnaceManager manager, Furnace furnace, CubeFurnaceRecipe recipe, FuelIngredient fuel)
     {
         this.location = furnace.getLocation();
         this.coreModule = manager.coreModule;
@@ -59,7 +59,7 @@ public class CustomSmelting
         this.updateForNewRecipe(furnace, recipe, fuel);
     }
 
-    public CustomSmelting updateForNewRecipe(Furnace furnace, CubeFurnaceRecipe recipe, FuelIngredient fuel)
+    public SmeltingHandler updateForNewRecipe(Furnace furnace, CubeFurnaceRecipe recipe, FuelIngredient fuel)
     {
         this.recipe = recipe;
         this.fuel = fuel;
@@ -73,7 +73,7 @@ public class CustomSmelting
         return this;
     }
 
-    public CustomSmelting updateLastFuelTick(int ticks)
+    public SmeltingHandler updateLastFuelTick(int ticks)
     {
         lastFuelTick = ticks;
         return this;
@@ -99,6 +99,11 @@ public class CustomSmelting
     public boolean isDone()
     {
         return this.runner == null;
+    }
+
+    public boolean isDoneNextTick()
+    {
+        return this.totalSmeltTime - this.curSmeltTime == 1;
     }
 
     private void runSmelting(final Furnace furnace)
@@ -190,6 +195,6 @@ public class CustomSmelting
                 }
             }
         };
-        this.taskID = manager.coreModule.getCore().getTaskManager().runTimer(manager.coreModule, runner, 1, 1);
+        this.taskID = manager.coreModule.getCore().getTaskManager().runTimer(manager.coreModule, runner, 0, 1);
     }
 }
