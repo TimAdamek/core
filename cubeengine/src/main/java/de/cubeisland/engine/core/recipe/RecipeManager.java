@@ -170,11 +170,14 @@ public class RecipeManager implements Listener
     public void unregisterAllRecipes(Module module)
     {
         Set<CubeRecipe> remove = this.recipes.remove(module);
-        this.workbenchRecipes.removeAll(remove);
-        this.furnaceRecipes.removeAll(remove);
-        for (CubeRecipe recipe : remove)
+        if (remove != null)
         {
-            this.finishUnregister(recipe);
+            this.workbenchRecipes.removeAll(remove);
+            this.furnaceRecipes.removeAll(remove);
+            for (CubeRecipe recipe : remove)
+            {
+                this.finishUnregister(recipe);
+            }
         }
     }
 
