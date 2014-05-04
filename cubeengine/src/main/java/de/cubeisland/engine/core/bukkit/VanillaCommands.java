@@ -15,7 +15,7 @@
  * You should have received a copy of the GNU General Public License
  * along with CubeEngine.  If not, see <http://www.gnu.org/licenses/>.
  */
-package de.cubeisland.engine.core.command.commands;
+package de.cubeisland.engine.core.bukkit;
 
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
@@ -32,8 +32,6 @@ import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 
 import de.cubeisland.engine.core.Core;
-import de.cubeisland.engine.core.bukkit.BukkitCore;
-import de.cubeisland.engine.core.bukkit.BukkitUtils;
 import de.cubeisland.engine.core.command.CommandContext;
 import de.cubeisland.engine.core.command.CommandHolder;
 import de.cubeisland.engine.core.command.CommandSender;
@@ -153,8 +151,11 @@ public class VanillaCommands implements CommandHolder
             }
             if (difficulty == null)
             {
-                difficulty = Difficulty.valueOf(context.getString(0).toUpperCase(Locale.US));
-                if (difficulty == null)
+                try
+                {
+                    difficulty = Difficulty.valueOf(context.getString(0).toUpperCase(Locale.US));
+                }
+                catch (IllegalArgumentException e)
                 {
                     sender.sendTranslated(NEGATIVE, "{input} is not a known difficulty!", context.getString(0));
                     return;
@@ -402,7 +403,7 @@ public class VanillaCommands implements CommandHolder
     }
 
     private static final String SOURCE_LINK = "https://github.com/CubeEngineDev/CubeEngine/tree/";
-    protected static void showSourceVersion(ParameterizedContext context, String sourceVersion)
+    public static void showSourceVersion(ParameterizedContext context, String sourceVersion)
     {
         if (context.hasFlag("s") && sourceVersion != null)
         {

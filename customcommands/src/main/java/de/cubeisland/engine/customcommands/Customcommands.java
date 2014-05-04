@@ -15,26 +15,28 @@
  * You should have received a copy of the GNU General Public License
  * along with CubeEngine.  If not, see <http://www.gnu.org/licenses/>.
  */
-package de.cubeisland.engine.core.command.readers;
+package de.cubeisland.engine.customcommands;
 
-import java.util.Locale;
+import de.cubeisland.engine.core.module.Module;
 
-import de.cubeisland.engine.core.command.ArgumentReader;
-import de.cubeisland.engine.core.command.exception.InvalidArgumentException;
-
-public class ByteReader extends ArgumentReader
+public class Customcommands extends Module
 {
+    private CustomCommandsConfig config;
+
     @Override
-    public Byte read(String arg, Locale locale) throws InvalidArgumentException
+    public void onEnable()
     {
-        String num = arg.replace(',', '.').replace(".", "");
-        try
+        this.config = this.loadConfig(CustomCommandsConfig.class);
+
+        if (this.config.commands.size() > 0)
         {
-            return Byte.parseByte(num);
+            this.getCore().getEventManager().registerListener(this, new CustomCommandsListener(this));
         }
-        catch (NumberFormatException e)
-        {
-            throw new InvalidArgumentException("Could not parse {input} to a byte!", arg);
-        }
+        this.getCore().getCommandManager().registerCommand(new ManagementCommands(this));
+    }
+
+    public CustomCommandsConfig getConfig()
+    {
+        return config;
     }
 }

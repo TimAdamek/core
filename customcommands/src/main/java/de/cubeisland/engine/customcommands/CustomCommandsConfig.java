@@ -15,26 +15,32 @@
  * You should have received a copy of the GNU General Public License
  * along with CubeEngine.  If not, see <http://www.gnu.org/licenses/>.
  */
-package de.cubeisland.engine.core.command.readers;
+package de.cubeisland.engine.customcommands;
 
-import java.util.Locale;
+import java.io.File;
+import java.util.HashMap;
+import java.util.Map.Entry;
 
-import de.cubeisland.engine.core.command.ArgumentReader;
-import de.cubeisland.engine.core.command.exception.InvalidArgumentException;
+import de.cubeisland.engine.reflect.ReflectedYaml;
 
-public class ByteReader extends ArgumentReader
+import static java.util.Locale.ENGLISH;
+
+@SuppressWarnings("all")
+public class CustomCommandsConfig extends ReflectedYaml
 {
+    public HashMap<String, String> commands = new HashMap<>();
+    public boolean surpressMessage;
+
     @Override
-    public Byte read(String arg, Locale locale) throws InvalidArgumentException
+    public void onLoaded(File loadedFrom)
     {
-        String num = arg.replace(',', '.').replace(".", "");
-        try
+        HashMap<String, String> dummyMap = new HashMap<>();
+
+        for(Entry<String, String> entry : commands.entrySet())
         {
-            return Byte.parseByte(num);
+            dummyMap.put(entry.getKey().toLowerCase(ENGLISH), entry.getValue());
         }
-        catch (NumberFormatException e)
-        {
-            throw new InvalidArgumentException("Could not parse {input} to a byte!", arg);
-        }
+
+        commands = dummyMap;
     }
 }
