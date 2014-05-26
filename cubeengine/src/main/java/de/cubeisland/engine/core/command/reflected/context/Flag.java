@@ -15,22 +15,19 @@
  * You should have received a copy of the GNU General Public License
  * along with CubeEngine.  If not, see <http://www.gnu.org/licenses/>.
  */
-package de.cubeisland.engine.core.command.reflected;
+package de.cubeisland.engine.core.command.reflected.context;
 
-import java.lang.annotation.Documented;
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
+import de.cubeisland.engine.core.permission.PermDefault;
 
-@Documented
-@Retention(RetentionPolicy.RUNTIME)
-@Target(ElementType.METHOD)
-public @interface Command
+import static de.cubeisland.engine.core.permission.PermDefault.OP;
+
+public @interface Flag
 {
-    String name() default "";
-    String[] alias() default {};
-    String desc();
+    String name();
+
+    String longName() default "";
+
+    String permission() default "";
+
+    PermDefault permDefault() default OP;
 }
-
-
