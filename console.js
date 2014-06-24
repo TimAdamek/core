@@ -51,11 +51,6 @@ $(function () {
         ui.connect.text('reconnect');
     }
 
-    function connect() {
-        socket = open(settings.host(), settings.port(), settings.ssl());
-        ui.connect.text("connecting...");
-    }
-
     function sendMessage(message) {
         var json = {};
         json.command = message.substring(0, message.indexOf(":"));
@@ -83,8 +78,12 @@ $(function () {
         }
     }
 
-    function open(host, port, ssl) {
-        var socket = new WebSocket((ssl ? 'wss' : 'ws') + '://' + host + ':' + port + '/websocket');
+    function connect() {
+        if (socket && socket.readyState == WebSocket.OPEN) {
+            return;
+        }
+        var url = (settings.ssl() ? 'wss' : 'ws') + '://' + settings.host() + ':' + settings.port() + '/websocket';
+        socket = new WebSocket(url + location.search);
 
         socket.onopen = function () {
             print('status', 'Connected!');
@@ -102,8 +101,7 @@ $(function () {
             disconnect();
         };
 
-
-        return socket;
+        ui.connect.text("connecting...");
     }
 
     var history = JSON.parse(localStorage.getItem("history") || "[]");
@@ -128,6 +126,12 @@ $(function () {
             } else if (c == 40 && historyIndex < history.length) {
                 ui.commandline.val(history[++historyIndex]);
             }
+        }
+    });
+
+    ui.settings.container.on('keydown', function(e) {
+        if (e.keyCode == 13) {
+            connect();
         }
     });
 });
