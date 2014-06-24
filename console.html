@@ -10,16 +10,16 @@
     <body>
         <div>
             <div id="settings">
-                Connect to <input type="text" value="localhost" placeholder="host">
-                <input type="number" value="6561" placeholder="port">
-                <label><input type="checkbox">SSL</label>
-                <button type="button">connect</button>
+                Connect to <input autocomplete autofocus tabindex="1" type="text" value="localhost" placeholder="host">
+                <input tabindex="2" type="number" value="6561" placeholder="port">
+                <label><input tabindex="3" type="checkbox"><span>SSL</span></label>
+                <button tabindex="4" type="button">connect</button>
             </div>
             <div id="console">
                 <div id="screen"></div>
                 <div id="input">
                     <div>
-                        <input type="text" placeholder="Command" disabled>
+                        <input tabindex="5" type="text" placeholder="Command" disabled>
                     </div>
                 </div>
             </div>

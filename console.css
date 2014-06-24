@@ -15,6 +15,17 @@ input, button {
     border: 1px dashed green;
 }
 
+button:active {
+    border-color: red;
+}
+
+button:focus, input:focus {
+    border-color: yellow;
+}
+input[type=checkbox]:focus + span {
+    color: yellow;
+}
+
 body > div {
     width: 700px;
     margin: 1cm auto;
