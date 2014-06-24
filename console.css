@@ -1,0 +1,69 @@
+html, body {
+    margin: 0;
+    padding: 0;
+    font-family: Verdana, serif;
+    font-size: 100.01%;
+    background-color: black;
+}
+
+html, body, input, button {
+    color: green;
+}
+
+input, button {
+    background-color: transparent;
+    border: 1px dashed green;
+}
+
+body > div {
+    width: 700px;
+    margin: 1cm auto;
+}
+
+#settings {
+    margin-bottom: 15px;
+}
+
+#console {
+    margin-top: 15px;
+}
+
+#screen {
+    min-height: 100px;
+    max-height: 400px;
+    background-color: #111;
+    overflow: auto;
+    font-family: Courier, monospace;
+}
+
+#screen > div {
+    margin: 2px;
+}
+
+#input > div {
+    border-bottom: 1px dashed green;
+    padding: 3px;
+}
+
+#input input {
+    display: block;
+    border: 0;
+    padding: 0;
+    width: 100%;
+}
+
+.message-written {
+    color: yellow;
+}
+
+.message-read {
+    color: lime;
+}
+
+.message-error {
+    color: red;
+}
+
+.message-status {
+    color: gray;
+}
