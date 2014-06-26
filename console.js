@@ -1,4 +1,7 @@
 $(function () {
+    
+    var msgid = 1;
+    
     if (!("WebSocket" in window)) {
         alert("maaan, do you live in the stone ages? get a modern browser!");
         return;
@@ -53,7 +56,8 @@ $(function () {
 
     function sendMessage(message) {
         var json = {};
-        json.command = message.substring(0, message.indexOf(":"));
+        json.action = message.substring(0, message.indexOf(":"));
+        json.msgid = msgid++;
         var data = message.substring(message.indexOf(":") + 1);
         try {
             json.data = JSON.parse(data);
