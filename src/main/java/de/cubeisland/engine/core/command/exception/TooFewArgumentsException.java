@@ -15,23 +15,16 @@
  * You should have received a copy of the GNU General Public License
  * along with CubeEngine.  If not, see <http://www.gnu.org/licenses/>.
  */
-package de.cubeisland.engine.core.command.readers;
+package de.cubeisland.engine.core.command.exception;
 
+import de.cubeisland.engine.core.command.CommandSender;
 
-import java.util.Locale;
+import static de.cubeisland.engine.core.util.formatter.MessageType.NEGATIVE;
 
-import de.cubeisland.engine.core.command.ArgumentReader;
-import de.cubeisland.engine.core.command.exception.ReaderException;
-
-public class IntegerOrAllReader extends ArgumentReader
+public class TooFewArgumentsException extends IncorrectUsageException
 {
-    @Override
-    public Object read(String arg, Locale locale) throws ReaderException
+    public TooFewArgumentsException(CommandSender sender)
     {
-        if ("*".equals(arg))
-        {
-            return "*";
-        }
-        return ArgumentReader.read(Integer.class, arg, locale);
+        super(sender.getTranslation(NEGATIVE, "You've given too few arguments."));
     }
 }

@@ -17,104 +17,52 @@
  */
 package de.cubeisland.engine.core.webapi;
 
-import java.lang.reflect.Method;
-import java.util.Arrays;
-import java.util.EnumSet;
-import java.util.Set;
+import java.util.LinkedHashMap;
 
 import de.cubeisland.engine.core.module.Module;
+import de.cubeisland.engine.core.permission.Permission;
 
-/**
- * This class is a wrapper for the action requestMethods to extract the information
- * from the annotation and to link the method with its holder.
- *
- * This class is usually not needed by holder developers
- */
-public final class ApiHandler
+public abstract class ApiHandler
 {
-    private final ApiHolder holder;
-    private final String route;
-    private final Method method;
-    private final boolean authNeeded;
-    private final String[] parameters;
-    private final Set<RequestMethod> requestMethods;
+    private final Module module;
+    private final String route; // and command (for ws)
+    private final Permission permission;
+    private final LinkedHashMap<String, Class> parameters;
+    private final RequestMethod reqMethod;
 
-    /**
-     * Initializes the request action.
-     *
-     * @param holder     the parent
-     * @param route      the route of the action
-     * @param method     the method to invoke
-     * @param authNeeded whether authentication is needed
-     */
-    ApiHandler(ApiHolder holder, String route, Method method, boolean authNeeded, String[] parameters, RequestMethod[] requestMethods)
+    protected ApiHandler(Module module, String route, Permission perm, LinkedHashMap<String, Class> params, RequestMethod reqMethod)
     {
-        this.holder = holder;
+        this.module = module;
         this.route = route;
-        this.method = method;
-        this.authNeeded = authNeeded;
-        this.parameters = parameters;
-        this.requestMethods = EnumSet.copyOf(Arrays.asList(requestMethods));
-
-        this.method.setAccessible(true);
+        this.permission = perm;
+        this.parameters = params;
+        this.reqMethod = reqMethod;
     }
+
+    public abstract ApiResponse execute(ApiRequest request);
 
     public Module getModule()
     {
-        return this.holder.getModule();
+        return module;
     }
 
-    public ApiHolder getHolder()
-    {
-        return this.holder;
-    }
-
-    /**
-     * Returns the route of action
-     *
-     * @return the route
-     */
     public String getRoute()
     {
-        return this.route;
+        return route;
     }
 
-    /**
-     * Returns whether this action requires authentication.
-     *
-     * @return whether authentication is needed
-     */
-    public Boolean isAuthNeeded()
+    public Permission getPermission()
     {
-        return this.authNeeded;
+        return permission;
     }
 
-    /**
-     * Returns an array of the required parameters
-     *
-     * @return the required parameters
-     */
-    public String[] getParameters()
+    public LinkedHashMap<String, Class> getParameters()
     {
-        return this.parameters;
+        return parameters;
     }
 
-    public boolean isMethodAccepted(RequestMethod method)
+    public RequestMethod getReqMethod()
     {
-        return this.requestMethods.contains(method);
-    }
-
-    /**
-     * This method handles the request.
-     */
-    public void execute(final ApiRequest request, final ApiResponse response) throws Exception
-    {
-        this.method.invoke(this.holder, request, response);
-    }
-
-    @Override
-    public String toString()
-    {
-        return this.getRoute();
+        return reqMethod;
     }
 }

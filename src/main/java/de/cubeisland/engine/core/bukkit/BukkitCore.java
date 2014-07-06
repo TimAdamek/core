@@ -21,6 +21,7 @@ import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.Writer;
+import java.net.InetAddress;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.text.SimpleDateFormat;
@@ -84,6 +85,9 @@ import de.cubeisland.engine.core.util.matcher.Match;
 import de.cubeisland.engine.core.util.math.BlockVector3;
 import de.cubeisland.engine.core.webapi.ApiConfig;
 import de.cubeisland.engine.core.webapi.ApiServer;
+import de.cubeisland.engine.core.webapi.CommandController;
+import de.cubeisland.engine.core.webapi.ConsoleLogEvent;
+import de.cubeisland.engine.core.webapi.InetAddressConverter;
 import de.cubeisland.engine.core.webapi.exception.ApiStartupException;
 import de.cubeisland.engine.core.world.ConfigWorld;
 import de.cubeisland.engine.core.world.ConfigWorldConverter;
@@ -92,6 +96,8 @@ import de.cubeisland.engine.logging.Log;
 import de.cubeisland.engine.logging.LogLevel;
 import de.cubeisland.engine.reflect.Reflector;
 import de.cubeisland.engine.reflect.codec.ConverterManager;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.core.Logger;
 import org.joda.time.Duration;
 
 import static de.cubeisland.engine.core.contract.Contract.expectNotNull;
@@ -206,7 +212,9 @@ public final class BukkitCore extends JavaPlugin implements Core
 
         // depends on: object mapper, logger
         this.apiServer = new ApiServer(this);
-        this.apiServer.configure(configFactory.load(ApiConfig.class, this.fileManager.getDataPath().resolve("webapi.yml").toFile()));
+        configFactory.getDefaultConverterManager().registerConverter(InetAddress.class, new InetAddressConverter());
+        this.apiServer.configure(configFactory.load(ApiConfig.class, this.fileManager.getDataPath().resolve(
+            "webapi.yml").toFile()));
 
         // depends on: logger
         if (this.config.catchSystemSignals)
@@ -219,6 +227,9 @@ public final class BukkitCore extends JavaPlugin implements Core
             try
             {
                 this.apiServer.start();
+                ConsoleLogEvent event = new ConsoleLogEvent(apiServer);
+                event.start();
+                ((Logger)LogManager.getLogger()).addAppender(event);
             }
             catch (ApiStartupException ex)
             {
@@ -357,6 +368,8 @@ public final class BukkitCore extends JavaPlugin implements Core
         this.freezeDetection.start();
 
         this.started = true;
+
+        this.apiServer.registerApiHandlers(this.moduleManager.getCoreModule(), new CommandController(this));
     }
 
     @Override

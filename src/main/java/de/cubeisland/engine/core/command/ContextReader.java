@@ -59,6 +59,20 @@ public class ContextReader extends ContextParser
             }
             else
             {
+                boolean foundStatic = false;
+                for (String label : indexed.getLabels())
+                {
+                    if (label.startsWith("!") && label.substring(1).equalsIgnoreCase(arg))
+                    {
+                        result.add(arg);
+                        foundStatic = true;
+                    }
+                }
+                if (foundStatic)
+                {
+                    continue;
+                }
+
                 ReaderException e = null;
                 for (Class<?> type : indexed.getType())
                 {

@@ -37,6 +37,8 @@ import de.cubeisland.engine.core.command.exception.CommandException;
 import de.cubeisland.engine.core.command.exception.IncorrectUsageException;
 import de.cubeisland.engine.core.command.exception.MissingParameterException;
 import de.cubeisland.engine.core.command.exception.PermissionDeniedException;
+import de.cubeisland.engine.core.command.exception.TooFewArgumentsException;
+import de.cubeisland.engine.core.command.exception.TooManyArgumentsException;
 import de.cubeisland.engine.core.command.parameterized.CommandFlag;
 import de.cubeisland.engine.core.command.parameterized.CommandParameter;
 import de.cubeisland.engine.core.command.parameterized.CommandParameterIndexed;
@@ -52,9 +54,7 @@ import static de.cubeisland.engine.core.permission.PermDefault.OP;
 import static de.cubeisland.engine.core.util.ChatFormat.*;
 import static de.cubeisland.engine.core.util.StringUtils.implode;
 import static de.cubeisland.engine.core.util.StringUtils.startsWithIgnoreCase;
-import static de.cubeisland.engine.core.util.formatter.MessageType.NEGATIVE;
-import static de.cubeisland.engine.core.util.formatter.MessageType.NEUTRAL;
-import static de.cubeisland.engine.core.util.formatter.MessageType.NONE;
+import static de.cubeisland.engine.core.util.formatter.MessageType.*;
 
 /**
  * This class is the base for all of our commands
@@ -352,7 +352,7 @@ public abstract class CubeCommand
         {
             if (rawLabels.length == 1)
             {
-                labels[i] = convertLabel(true, "!" + rawLabels[i]);
+                labels[i] = convertLabel(true, "#" + rawLabels[i]);
             }
             else
             {
@@ -365,6 +365,10 @@ public abstract class CubeCommand
     private String convertLabel(boolean req, String label)
     {
         if (label.startsWith("!"))
+        {
+            return label.substring(1);
+        }
+        else if (label.startsWith("#"))
         {
             return label.substring(1);
         }
@@ -419,7 +423,7 @@ public abstract class CubeCommand
         {
             parentLabels.remove(parentLabels.size() - 1);
         }
-        return sender instanceof User ? "/" : "" + implode(" ", parentLabels) + ' ' + usage;
+        return (sender instanceof User ? "/" : "") + implode(" ", parentLabels) + ' ' + usage;
     }
 
     /**
@@ -723,11 +727,11 @@ public abstract class CubeCommand
         ArgBounds bounds = ctx.getCommand().getContextFactory().getArgBounds();
         if (ctx.getIndexedCount() < bounds.getMin())
         {
-            throw new IncorrectUsageException(ctx.getSender().getTranslation(NEGATIVE, "You've given too few arguments."));
+            throw new TooFewArgumentsException(ctx.getSender());
         }
         if (bounds.getMax() > ArgBounds.NO_MAX && ctx.getIndexedCount() > bounds.getMax())
         {
-            throw new IncorrectUsageException(ctx.getSender().getTranslation(NEGATIVE, "You've given too many arguments."));
+            throw new TooManyArgumentsException(ctx.getSender());
         }
         if (ctx.getCommand().isCheckperm() && !ctx.getCommand().isAuthorized(ctx.getSender()))
         {
@@ -735,6 +739,7 @@ public abstract class CubeCommand
         }
         if (ctx.getCommand().isOnlyIngame() && !(ctx.isSender(User.class)))
         {
+            // TODO disallow usage for SENDER Classes
             String onlyIngame = ctx.getCommand().getOnlyIngame();
             if (onlyIngame.isEmpty())
             {

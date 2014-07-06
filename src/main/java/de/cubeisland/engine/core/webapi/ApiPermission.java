@@ -15,26 +15,19 @@
  * You should have received a copy of the GNU General Public License
  * along with CubeEngine.  If not, see <http://www.gnu.org/licenses/>.
  */
-package de.cubeisland.engine.core.command.readers;
+package de.cubeisland.engine.core.webapi;
 
-import java.util.Locale;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
-import de.cubeisland.engine.core.command.ArgumentReader;
-import de.cubeisland.engine.core.command.exception.ReaderException;
-import de.cubeisland.engine.core.user.User;
+import de.cubeisland.engine.core.permission.PermDefault;
 
-/**
- * Returns the String "*" or a user
- */
-public class UserOrAllReader extends ArgumentReader
+@Retention(RetentionPolicy.RUNTIME)
+@Target(ElementType.METHOD)
+public @interface ApiPermission
 {
-    @Override
-    public Object read(String arg, Locale locale) throws ReaderException
-    {
-        if ("*".equals(arg))
-        {
-            return "*";
-        }
-        return ArgumentReader.read(User.class, arg, locale);
-    }
+    public String value();
+    public PermDefault permDefault() default PermDefault.OP;
 }

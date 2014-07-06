@@ -15,22 +15,16 @@
  * You should have received a copy of the GNU General Public License
  * along with CubeEngine.  If not, see <http://www.gnu.org/licenses/>.
  */
-package de.cubeisland.engine.core.webapi;
+package de.cubeisland.engine.core.command.exception;
 
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
+import de.cubeisland.engine.core.command.CommandSender;
 
-@Retention(RetentionPolicy.RUNTIME)
-@Target(ElementType.METHOD)
-public @interface Action
+import static de.cubeisland.engine.core.util.formatter.MessageType.NEGATIVE;
+
+public class TooManyArgumentsException extends IncorrectUsageException
 {
-    /**
-     * The route for this action
-     * if empty string route is generated from camelcased methodname
-     */
-    public String value() default "";
-
-    public boolean needsAuth() default true;
+    public TooManyArgumentsException(CommandSender sender)
+    {
+        super(sender.getTranslation(NEGATIVE, "You've given too many arguments."));
+    }
 }

@@ -17,11 +17,12 @@
  */
 package de.cubeisland.engine.core.webapi;
 
+import java.net.InetAddress;
 import java.util.Collections;
 import java.util.Set;
 
-import de.cubeisland.engine.reflect.Section;
 import de.cubeisland.engine.reflect.ReflectedYaml;
+import de.cubeisland.engine.reflect.Section;
 import de.cubeisland.engine.reflect.annotations.Comment;
 
 @SuppressWarnings("all")
@@ -39,6 +40,9 @@ public class ApiConfig extends ReflectedYaml
 
         @Comment("The maximum number of threads for the API server")
         public int maxThreads = 2;
+
+        @Comment("The maxiumum number of concurrent connections from one ip")
+        public int maxConnectionPerIp = 2;
 
         @Comment("The maximum amount of data written from a request")
         public int maxContentLength = 1048576;
@@ -72,7 +76,7 @@ public class ApiConfig extends ReflectedYaml
         public boolean enable = false;
 
         @Comment("The IPs to block")
-        public Set<String> ips = Collections.emptySet();
+        public Set<InetAddress> ips = Collections.emptySet();
     }
 
     public WhitelistSection whitelist;
@@ -83,6 +87,17 @@ public class ApiConfig extends ReflectedYaml
         public boolean enable = false;
 
         @Comment("The IPs to allow")
-        public Set<String> ips = Collections.emptySet();
+        public Set<InetAddress> ips = Collections.emptySet();
+    }
+
+    public AuthorizedSection authorizedList;
+
+    public class AuthorizedSection implements Section
+    {
+        @Comment("This enables IPs to be authorized by default")
+        public boolean enable = false;
+
+        @Comment("The IPs to be authorized by default")
+        public Set<InetAddress> ips = Collections.emptySet();
     }
 }

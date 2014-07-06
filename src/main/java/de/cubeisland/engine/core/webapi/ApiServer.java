@@ -17,30 +17,33 @@
  */
 package de.cubeisland.engine.core.webapi;
 
+import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 import java.util.Iterator;
-import java.util.List;
-import java.util.Locale;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import de.cubeisland.engine.core.Core;
 import de.cubeisland.engine.core.logging.LoggingUtil;
 import de.cubeisland.engine.core.module.Module;
+import de.cubeisland.engine.core.permission.PermDefault;
+import de.cubeisland.engine.core.util.StringUtils;
 import de.cubeisland.engine.core.webapi.exception.ApiStartupException;
 import de.cubeisland.engine.logging.Log;
 import de.cubeisland.engine.logging.target.file.AsyncFileTarget;
+import de.cubeisland.engine.logging.target.proxy.LogProxyTarget;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.EventLoopGroup;
@@ -49,33 +52,38 @@ import io.netty.channel.socket.nio.NioServerSocketChannel;
 import org.apache.commons.lang.Validate;
 
 import static de.cubeisland.engine.core.contract.Contract.expectNotNull;
+import static java.util.Locale.ENGLISH;
 
 /**
- * This class represents the API server and provides methods to configure and
- * controll it
+ * This class represents the API server and provides methods to configure and control it
  */
 public class ApiServer
 {
     private final Core core;
     private final Log log;
-    private final AtomicInteger maxContentLength;
-    private final AtomicBoolean compress;
-    private final AtomicInteger compressionLevel;
-    private final AtomicInteger windowBits;
-    private final AtomicInteger memoryLevel;
-    private final AtomicReference<InetAddress> bindAddress;
-    private final AtomicInteger port;
-    private final AtomicReference<ServerBootstrap> bootstrap;
-    private final AtomicReference<EventLoopGroup> eventLoopGroup;
-    private final AtomicReference<Channel> channel;
-    private final AtomicInteger maxThreads;
-    private final Set<String> disabledRoutes;
-    private final AtomicBoolean enableWhitelist;
-    private final Set<String> whitelist;
-    private final AtomicBoolean enableBlacklist;
-    private final Set<String> blacklist;
-    private final ConcurrentMap<String, ApiHandler> handlers;
-    private final ConcurrentMap<String, List<ApiRequestHandler>> subscriptions;
+    private final AtomicInteger maxContentLength = new AtomicInteger(1048576);
+    private final AtomicBoolean compress = new AtomicBoolean(false);
+    private final AtomicInteger compressionLevel = new AtomicInteger(9);
+    private final AtomicInteger windowBits = new AtomicInteger(15);
+    private final AtomicInteger memoryLevel = new AtomicInteger(9);
+    private final AtomicReference<InetAddress> bindAddress = new AtomicReference<>(null);
+    private final AtomicInteger port = new AtomicInteger(6561);
+    private final AtomicReference<ServerBootstrap> bootstrap = new AtomicReference<>(null);
+    private final AtomicReference<EventLoopGroup> eventLoopGroup = new AtomicReference<>(null);
+    private final AtomicReference<Channel> channel = new AtomicReference<>(null);
+    private final AtomicInteger maxThreads = new AtomicInteger(2);
+    private final Set<String> disabledRoutes = new CopyOnWriteArraySet<>();
+    private final AtomicBoolean enableWhitelist = new AtomicBoolean(false);
+    private final Set<InetAddress> whitelist = new CopyOnWriteArraySet<>();
+    private final AtomicBoolean enableBlacklist = new AtomicBoolean(false);
+    private final Set<InetAddress> blacklist = new CopyOnWriteArraySet<>();
+    private final AtomicBoolean enableAuthorizedList = new AtomicBoolean(false);
+    private final Set<InetAddress> authorizedList = new CopyOnWriteArraySet<>();
+
+    private final ConcurrentMap<String, ApiHandler> handlers = new ConcurrentHashMap<>();
+    private final ConcurrentMap<String, Set<WebSocketRequestHandler>> subscriptions = new ConcurrentHashMap<>();
+    private final AtomicInteger maxConnectionCount = new AtomicInteger(1);
+
 
     public ApiServer(Core core)
     {
@@ -85,12 +93,7 @@ public class ApiServer
                                                   LoggingUtil.getFileFormat(true, true),
                                                   true, LoggingUtil.getCycler(),
                                                   core.getTaskManager().getThreadFactory()));
-
-        this.bootstrap = new AtomicReference<>(null);
-        this.eventLoopGroup = new AtomicReference<>(null);
-        this.channel = new AtomicReference<>(null);
-        this.bindAddress = new AtomicReference<>(null);
-        this.maxThreads = new AtomicInteger(2);
+        this.log.addTarget(new LogProxyTarget(core.getLogFactory().getParent()));
         try
         {
             this.bindAddress.set(InetAddress.getLocalHost());
@@ -99,22 +102,6 @@ public class ApiServer
         {
             this.log.warn("Failed to get the localhost!");
         }
-        this.port = new AtomicInteger(6561);
-        this.maxContentLength = new AtomicInteger(1048576);
-
-        this.compress = new AtomicBoolean(false);
-        this.compressionLevel = new AtomicInteger(9);
-        this.windowBits = new AtomicInteger(15);
-        this.memoryLevel = new AtomicInteger(9);
-
-        this.disabledRoutes = new CopyOnWriteArraySet<>();
-        this.enableWhitelist = new AtomicBoolean(false);
-        this.whitelist = new CopyOnWriteArraySet<>();
-        this.enableBlacklist = new AtomicBoolean(false);
-        this.blacklist = new CopyOnWriteArraySet<>();
-
-        this.handlers = new ConcurrentHashMap<>();
-        this.subscriptions = new ConcurrentHashMap<>();
     }
 
     public Log getLog()
@@ -137,6 +124,7 @@ public class ApiServer
         }
         this.setPort(config.network.port);
         this.setMaxThreads(config.network.maxThreads);
+        this.setMaxConnectionCount(config.network.maxConnectionPerIp);
 
         this.setCompressionEnabled(config.compression.enable);
         this.setCompressionLevel(config.compression.level);
@@ -148,6 +136,9 @@ public class ApiServer
 
         this.setBlacklistEnabled(config.blacklist.enable);
         this.setBlacklist(config.blacklist.ips);
+
+        this.setAuthorizedListEnabled(config.authorizedList.enable);
+        this.setAuthorizedList(config.authorizedList.ips);
     }
 
     /**
@@ -219,19 +210,73 @@ public class ApiServer
         return this.handlers.get(route);
     }
 
-    public void registerApiHandlers(final ApiHolder holder)
+    public void registerApiHandlers(final Module owner, final Object holder)
     {
         expectNotNull(holder, "The API holder must not be null!");
 
-        String route;
-        Action actionAnnotation;
         for (Method method : holder.getClass().getDeclaredMethods())
         {
-            actionAnnotation = method.getAnnotation(Action.class);
-            if (actionAnnotation != null)
+            Action aAction = method.getAnnotation(Action.class);
+            if (aAction != null)
             {
-                route = ApiRequestHandler.normalizeRoute(actionAnnotation.route());
-                this.handlers.put(route, new ApiHandler(holder, route, method, actionAnnotation.auth(), actionAnnotation.parameters(), actionAnnotation.methods()));
+                String route = aAction.value();
+                if (route.isEmpty())
+                {
+                    route = StringUtils.deCamelCase(method.getName(), "/");
+                }
+                route = owner.getId() + "/" + route;
+                route = HttpRequestHandler.normalizePath(route);
+                de.cubeisland.engine.core.permission.Permission perm = null;
+                if (aAction.needsAuth())
+                {
+                    perm = owner.getBasePermission().childWildcard("webapi");
+                    if (method.isAnnotationPresent(ApiPermission.class))
+                    {
+                        ApiPermission apiPerm = method.getAnnotation(ApiPermission.class);
+                        if (apiPerm.value().isEmpty())
+                        {
+                            perm = perm.child(route, apiPerm.permDefault());
+                        }
+                        else
+                        {
+                            perm = perm.child(apiPerm.value(), apiPerm.permDefault());
+                        }
+                    }
+                    else
+                    {
+                        perm = perm.child(route, PermDefault.DEFAULT);
+                    }
+                }
+                LinkedHashMap<String, Class> params = new LinkedHashMap<>();
+                Class<?>[] types = method.getParameterTypes();
+                Annotation[][] paramAnnotations = method.getParameterAnnotations();
+                for (int i = 1; i < types.length; i++)
+                {
+                    Class<?> type = types[i];
+                    Value val = null;
+                    for (Annotation annotation : paramAnnotations[i])
+                    {
+                        if (annotation instanceof Value)
+                        {
+                            val = (Value)annotation;
+                            break;
+                        }
+                    }
+                    if (val == null)
+                    {
+                        throw new IllegalArgumentException("Missing Value Annotation for Additional Parameters");
+                    }
+                    if (params.put(val.value(), type) != null)
+                    {
+                        throw new IllegalArgumentException("Duplicate value in Value Annotation");
+                    }
+                }
+                RequestMethod reqMethod = RequestMethod.GET;
+                if (method.isAnnotationPresent(de.cubeisland.engine.core.webapi.Method.class))
+                {
+                    reqMethod = method.getAnnotation(de.cubeisland.engine.core.webapi.Method.class).value();
+                }
+                this.handlers.put(route, new ReflectedApiHandler(owner, route, perm, params, reqMethod, method, holder));
             }
         }
     }
@@ -256,7 +301,7 @@ public class ApiServer
         }
     }
 
-    public void unregisterApiHandlers(ApiHolder holder)
+    public void unregisterApiHandlers(Object holder)
     {
         Iterator<Map.Entry<String, ApiHandler>> iter = this.handlers.entrySet().iterator();
 
@@ -264,9 +309,12 @@ public class ApiServer
         while (iter.hasNext())
         {
             handler = iter.next().getValue();
-            if (handler.getHolder() == holder)
+            if (handler instanceof ReflectedApiHandler)
             {
-                iter.remove();
+                if (((ReflectedApiHandler)handler).getHolder() == holder)
+                {
+                    iter.remove();
+                }
             }
         }
     }
@@ -421,14 +469,9 @@ public class ApiServer
         this.enableWhitelist.set(state);
     }
 
-    public void whitelistAddress(String address)
-    {
-        this.whitelist.add(address);
-    }
-
     public void whitelistAddress(InetAddress address)
     {
-        this.whitelistAddress(address.getHostAddress());
+        this.whitelist.add(address);
     }
 
     public void whitelistAddress(InetSocketAddress address)
@@ -436,14 +479,9 @@ public class ApiServer
         this.whitelistAddress(address.getAddress());
     }
 
-    public void unWhitelistAddress(String address)
-    {
-        this.whitelist.remove(address);
-    }
-
     public void unWhitelistAddress(InetAddress address)
     {
-        this.unWhitelistAddress(address.getHostAddress());
+        this.whitelist.remove(address);
     }
 
     public void unWhitelistAddress(InetSocketAddress address)
@@ -451,24 +489,13 @@ public class ApiServer
         this.unWhitelistAddress(address.getAddress());
     }
 
-    public void setWhitelist(Set<String> newWhitelist)
+    public void setWhitelist(Set<InetAddress> newWhitelist)
     {
         expectNotNull(newWhitelist, "The whitelist must not be null!");
         Validate.noNullElements(newWhitelist, "The whitelist must not contain null values!");
 
         this.whitelist.clear();
         this.whitelist.addAll(newWhitelist);
-    }
-
-    /**
-     * Checks whether an string representation of an IP is whitelisted
-     *
-     * @param ip the IP
-     * @return true if it is
-     */
-    public boolean isWhitelisted(String ip)
-    {
-        return !this.enableWhitelist.get() || this.whitelist.contains(ip);
     }
 
     /**
@@ -479,7 +506,13 @@ public class ApiServer
      */
     public boolean isWhitelisted(InetAddress ip)
     {
-        return this.isWhitelisted(ip.getHostAddress());
+        return !this.enableWhitelist.get() || this.whitelist.contains(ip);
+    }
+
+
+    public boolean isAuthorized(InetAddress ip)
+    {
+        return !this.enableAuthorizedList.get() || this.authorizedList.contains(ip);
     }
 
     /**
@@ -503,14 +536,9 @@ public class ApiServer
         this.enableBlacklist.set(state);
     }
 
-    public void blacklistAddress(String address)
-    {
-        this.blacklist.add(address);
-    }
-
     public void blacklistAddress(InetAddress address)
     {
-        this.blacklistAddress(address.getHostAddress());
+        this.blacklist.add(address);
     }
 
     public void blacklistAddress(InetSocketAddress address)
@@ -518,14 +546,9 @@ public class ApiServer
         this.blacklistAddress(address.getAddress());
     }
 
-    public void unBlacklistAddress(String address)
-    {
-        this.blacklist.remove(address);
-    }
-
     public void unBlacklistAddress(InetAddress address)
     {
-        this.unBlacklistAddress(address.getHostAddress());
+        this.blacklist.remove(address);
     }
 
     public void unBlacklistAddress(InetSocketAddress address)
@@ -533,7 +556,7 @@ public class ApiServer
         this.unBlacklistAddress(address.getAddress());
     }
 
-    public void setBlacklist(Set<String> newBlacklist)
+    public void setBlacklist(Set<InetAddress> newBlacklist)
     {
         expectNotNull(newBlacklist, "The blacklist must not be null!");
         Validate.noNullElements(newBlacklist, "The blacklist must not contain null values!");
@@ -571,18 +594,21 @@ public class ApiServer
      */
     public boolean isBlacklisted(InetAddress ip)
     {
-        return this.isBlacklisted(ip.getHostAddress());
+        return this.enableBlacklist.get() && this.blacklist.contains(ip);
     }
 
-    /**
-     * Checks whether a string representation of an IP is blacklisted
-     *
-     * @param ip the IP
-     * @return true if it is
-     */
-    public boolean isBlacklisted(String ip)
+    public void setAuthorizedListEnabled(boolean enable)
     {
-        return this.enableBlacklist.get() && this.blacklist.contains(ip);
+        this.enableAuthorizedList.set(enable);
+    }
+
+    public void setAuthorizedList(Set<InetAddress> newAuthorizedlist)
+    {
+        expectNotNull(newAuthorizedlist, "The autorizedlist must not be null!");
+        Validate.noNullElements(newAuthorizedlist, "The autorizedlist must not contain null values!");
+
+        this.authorizedList.clear();
+        this.authorizedList.addAll(newAuthorizedlist);
     }
 
     public boolean isRouteDisabled(String route)
@@ -608,42 +634,32 @@ public class ApiServer
         }
     }
 
-    public boolean isAddressAccepted(String address)
+    public boolean isAddressAccepted(InetAddress address)
     {
         return this.isWhitelisted(address) && !this.isBlacklisted(address);
     }
 
-    public boolean isAddressAccepted(InetAddress address)
-    {
-        return this.isAddressAccepted(address.getHostAddress());
-    }
-
-    public boolean isAddressAccepted(InetSocketAddress address)
-    {
-        return this.isAddressAccepted(address.getAddress());
-    }
-
-    public void subscribe(String event, ApiRequestHandler requestHandler)
+    public void subscribe(String event, WebSocketRequestHandler requestHandler)
     {
         expectNotNull(event, "The event name must not be null!");
         expectNotNull(requestHandler, "The request handler must not be null!");
-        event = event.toLowerCase(Locale.ENGLISH);
+        event = event.toLowerCase(ENGLISH);
 
-        List<ApiRequestHandler> subscribedHandlers = this.subscriptions.get(event);
+        Set<WebSocketRequestHandler> subscribedHandlers = this.subscriptions.get(event);
         if (subscribedHandlers == null)
         {
-            this.subscriptions.put(event, subscribedHandlers = new CopyOnWriteArrayList<>());
+            this.subscriptions.put(event, subscribedHandlers = new CopyOnWriteArraySet<>());
         }
         subscribedHandlers.add(requestHandler);
     }
 
-    public void unsubscribe(String event, ApiRequestHandler requestHandler)
+    public void unsubscribe(String event, WebSocketRequestHandler requestHandler)
     {
         expectNotNull(event, "The event name must not be null!");
         expectNotNull(requestHandler, "The request handler must not be null!");
-        event = event.toLowerCase(Locale.ENGLISH);
+        event = event.toLowerCase(ENGLISH);
 
-        List<ApiRequestHandler> subscribedHandlers = this.subscriptions.get(event);
+        Set<WebSocketRequestHandler> subscribedHandlers = this.subscriptions.get(event);
         if (subscribedHandlers != null)
         {
             subscribedHandlers.remove(requestHandler);
@@ -657,30 +673,22 @@ public class ApiServer
     public void unsubscribe(String event)
     {
         expectNotNull(event, "The event name must not be null!");
-        event = event.toLowerCase(Locale.ENGLISH);
+        event = event.toLowerCase(ENGLISH);
 
         this.subscriptions.remove(event);
     }
 
-    public void unsubscribe(ApiRequestHandler handler)
+    public void unsubscribe(WebSocketRequestHandler handler)
     {
         expectNotNull(handler, "The event name must not be null!");
 
-        Iterator<Map.Entry<String, List<ApiRequestHandler>>> iter = this.subscriptions.entrySet().iterator();
+        Iterator<Map.Entry<String, Set<WebSocketRequestHandler>>> iter = this.subscriptions.entrySet().iterator();
 
-        List<ApiRequestHandler> handlers;
-        Iterator<ApiRequestHandler> handlerIter;
+        Set<WebSocketRequestHandler> handlers;
         while (iter.hasNext())
         {
             handlers = iter.next().getValue();
-            handlerIter = handlers.iterator();
-            while (handlerIter.hasNext())
-            {
-                if (handlerIter.next() == handler)
-                {
-                    handlerIter.remove();
-                }
-            }
+            handlers.remove(handler);
             if (handlers.isEmpty())
             {
                 iter.remove();
@@ -688,18 +696,28 @@ public class ApiServer
         }
     }
 
-    public void fireEvent(String event, Map<String, Object> data)
+    public void fireEvent(String event, ObjectNode data)
     {
         expectNotNull(event, "The event name must not be null!");
-        event = event.toLowerCase(Locale.ENGLISH);
+        event = event.toLowerCase(ENGLISH);
 
-        List<ApiRequestHandler> subscribedHandlers = this.subscriptions.get(event);
+        Set<WebSocketRequestHandler> subscribedHandlers = this.subscriptions.get(event);
         if (subscribedHandlers != null)
         {
-            for (ApiRequestHandler handler : subscribedHandlers)
+            for (WebSocketRequestHandler handler : subscribedHandlers)
             {
                 handler.handleEvent(event, data);
             }
         }
+    }
+
+    public void setMaxConnectionCount(int maxConnectionCount)
+    {
+        this.maxConnectionCount.set(maxConnectionCount);
+    }
+
+    public int getMaxConnectionCount()
+    {
+        return maxConnectionCount.get();
     }
 }
