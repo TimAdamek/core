@@ -22,10 +22,10 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map.Entry;
 
-import de.cubeisland.engine.core.command.ArgumentReader;
+import de.cubeisland.engine.command.CommandInvocation;
+import de.cubeisland.engine.command.parameter.reader.ReaderManager;
 import de.cubeisland.engine.core.module.Module;
 import de.cubeisland.engine.core.permission.Permission;
 
@@ -33,7 +33,7 @@ public final class ReflectedApiHandler extends ApiHandler
 {
     private final Method method;
     private final Object holder;
-
+    private final ReaderManager readerManager;
 
     public ReflectedApiHandler(Module module, String route, Permission permission,
                                LinkedHashMap<String, Class> params, RequestMethod reqMethod, Method method,
@@ -43,6 +43,7 @@ public final class ReflectedApiHandler extends ApiHandler
         this.method = method;
         this.method.setAccessible(true);
         this.holder = holder;
+        this.readerManager = module.getCore().getCommandManager().getReaderManager();
     }
 
     @Override
@@ -55,7 +56,7 @@ public final class ReflectedApiHandler extends ApiHandler
             list.add(request);
             for (Entry<String, Class> entry : this.getParameters().entrySet())
             {
-                list.add(ArgumentReader.read(entry.getValue(), params.getString(entry.getKey()), Locale.getDefault()));
+                list.add(readerManager.read(entry.getValue(), entry.getValue(), new CommandInvocation(null, params.getString(entry.getKey()), readerManager)));
             }
             return (ApiResponse)this.method.invoke(this.holder, list.toArray(new Object[list.size()]));
         }

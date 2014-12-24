@@ -17,18 +17,18 @@
  */
 package de.cubeisland.engine.core.command.readers;
 
-import java.util.Locale;
-
 import org.bukkit.World.Environment;
 
-import de.cubeisland.engine.core.command.ArgumentReader;
-import de.cubeisland.engine.core.command.exception.ReaderException;
+import de.cubeisland.engine.command.CommandInvocation;
+import de.cubeisland.engine.command.parameter.reader.ArgumentReader;
+import de.cubeisland.engine.command.parameter.reader.ReaderException;
+import de.cubeisland.engine.command.parameter.reader.ReaderManager;
 
-public class EnvironmentReader extends ArgumentReader
+public class EnvironmentReader implements ArgumentReader<Environment>
 {
     @Override
-    public Environment read(String arg, Locale locale) throws ReaderException
+    public Environment read(ReaderManager manager, Class type, CommandInvocation invocation) throws ReaderException
     {
-        return Environment.valueOf(arg.toUpperCase());
+        return Environment.valueOf(invocation.consume(1).toUpperCase());
     }
 }

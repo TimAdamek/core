@@ -20,46 +20,48 @@ package de.cubeisland.engine.core.module;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Collection;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
 import org.bukkit.Bukkit;
 import org.bukkit.plugin.Plugin;
 
+import de.cubeisland.engine.command.CommandInvocation;
+import de.cubeisland.engine.command.alias.Alias;
+import de.cubeisland.engine.command.methodic.Command;
+import de.cubeisland.engine.command.methodic.Flag;
+import de.cubeisland.engine.command.methodic.Param;
+import de.cubeisland.engine.command.methodic.Params;
+import de.cubeisland.engine.command.methodic.parametric.Label;
+import de.cubeisland.engine.command.methodic.parametric.Reader;
+import de.cubeisland.engine.command.parameter.reader.ArgumentReader;
+import de.cubeisland.engine.command.parameter.reader.ReaderException;
+import de.cubeisland.engine.command.parameter.reader.ReaderManager;
 import de.cubeisland.engine.core.CubeEngine;
 import de.cubeisland.engine.core.bukkit.VanillaCommands;
-import de.cubeisland.engine.core.command.ArgumentReader;
-import de.cubeisland.engine.core.command.ContainerCommand;
-import de.cubeisland.engine.core.command.CubeContext;
-import de.cubeisland.engine.core.command.exception.ModuleAlreadyLoadedException;
-import de.cubeisland.engine.core.command.exception.ReaderException;
-import de.cubeisland.engine.core.command.reflected.Alias;
-import de.cubeisland.engine.core.command.reflected.Command;
-import de.cubeisland.engine.core.command.reflected.context.Flag;
-import de.cubeisland.engine.core.command.reflected.context.Flags;
-import de.cubeisland.engine.core.command.reflected.context.Grouped;
-import de.cubeisland.engine.core.command.reflected.context.IParams;
-import de.cubeisland.engine.core.command.reflected.context.Indexed;
+import de.cubeisland.engine.core.command.CommandContainer;
+import de.cubeisland.engine.core.command.CommandContext;
 import de.cubeisland.engine.core.module.exception.ModuleException;
-import de.cubeisland.engine.core.util.ChatFormat;
 import de.cubeisland.engine.core.util.Version;
 
+import static de.cubeisland.engine.core.util.ChatFormat.BRIGHT_GREEN;
+import static de.cubeisland.engine.core.util.ChatFormat.RED;
 import static de.cubeisland.engine.core.util.formatter.MessageType.*;
 
 
-public class ModuleCommands extends ContainerCommand
+@Command(name = "module", desc = "Provides ingame module plugin management functionality")
+public class ModuleCommands extends CommandContainer
 {
     private final ModuleManager mm;
 
     public ModuleCommands(ModuleManager mm)
     {
-        super(mm.getCoreModule(), "module", "Provides ingame module plugin management functionality");
+        super(mm.getCoreModule());
         this.mm = mm;
-        ArgumentReader.registerReader(new ModuleReader(mm));
+        mm.getCoreModule().getCore().getCommandManager().getReaderManager().registerReader(new ModuleReader(mm));
     }
 
-    public static class ModuleReader extends ArgumentReader
+    public static class ModuleReader implements ArgumentReader<Module>
     {
         private ModuleManager mm;
 
@@ -69,20 +71,20 @@ public class ModuleCommands extends ContainerCommand
         }
 
         @Override
-        public Module read(String arg, Locale locale) throws ReaderException
+        public Module read(ReaderManager manager, Class type, CommandInvocation invocation) throws ReaderException
         {
-            Module module = this.mm.getModule(arg);
+            Module module = this.mm.getModule(invocation.consume(1));
             if (module == null)
             {
-                throw new ReaderException(CubeEngine.getI18n().translate(locale, NEGATIVE, "The given module could not be found!"));
+                throw new ReaderException(CubeEngine.getI18n().translate(invocation.getLocale(), NEGATIVE, "The given module could not be found!"));
             }
             return module;
         }
     }
 
-    @Alias(names = "modules")
+    @Alias(value = "modules")
     @Command(alias = "show", desc = "Lists all the loaded modules")
-    public void list(CubeContext context)
+    public void list(CommandContext context)
     {
         Collection<Module> modules = this.mm.getModules();
         if (modules.isEmpty())
@@ -96,56 +98,50 @@ public class ModuleCommands extends ContainerCommand
         {
             if (module.isEnabled())
             {
-                context.sendMessage(" + " + ChatFormat.BRIGHT_GREEN + module.getName());
+                context.sendMessage(" + " + BRIGHT_GREEN + module.getName());
             }
             else
             {
-                context.sendMessage(" - " + ChatFormat.RED + module.getName());
+                context.sendMessage(" - " + RED + module.getName());
             }
         }
     }
 
     @Command(desc = "Enables a module")
-    @IParams(@Grouped(@Indexed(label = "module", type = ModuleReader.class)))
-    public void enable(CubeContext context)
+    //@Params(positional = @Param(label = "module", type = ModuleReader.class))
+    public void enable(CommandContext context, @Label("module") @Reader(ModuleReader.class) Module module)
     {
-        if (this.mm.enableModule(context.<Module>getArg(0)))
+        if (this.mm.enableModule(module))
         {
             context.sendTranslated(POSITIVE, "The given module was successfully enabled!");
+            return;
         }
-        else
-        {
-            context.sendTranslated(CRITICAL, "An error occurred while enabling the module!");
-        }
+        context.sendTranslated(CRITICAL, "An error occurred while enabling the module!");
     }
 
     @Command(desc = "Disables a module")
-    @IParams(@Grouped(@Indexed(label = "module", type = ModuleReader.class)))
-    public void disable(CubeContext context)
+    public void disable(CommandContext context, @Label("module") @Reader(ModuleReader.class) Module module)
     {
-        Module module = context.getArg(0);
         this.mm.disableModule(module);
         context.sendTranslated(POSITIVE, "The module {name#module} was successfully disabled!", module.getId());
     }
 
     @Command(desc = "Unloaded a module and all the modules that depend on it")
-    @IParams(@Grouped(@Indexed(label = "module", type = ModuleReader.class)))
-    public void unload(CubeContext context)
+    public void unload(CommandContext context, @Label("module") @Reader(ModuleReader.class) Module module)
     {
-        Module module = context.getArg(0);
         this.mm.unloadModule(module);
         context.sendTranslated(POSITIVE, "The module {name#module} was successfully unloaded!", module.getId());
     }
 
     @Command(desc = "Reloads a module")
-    @IParams(@Grouped(@Indexed(label = "module", type = ModuleReader.class)))
-    @Flags(@Flag(name = "f", longName = "file"))
-    public void reload(CubeContext context)
+    @Params(positional = @Param(label = "module", type = ModuleReader.class))
+    public void reload(CommandContext context,
+                       @Label("module") @Reader(ModuleReader.class) Module module,
+                       @Flag(name = "f", longName = "file") boolean fromFile)
     {
-        Module module = context.getArg(0);
         try
         {
-            this.mm.reloadModule(module, context.hasFlag("f"));
+            this.mm.reloadModule(module, fromFile);
             if (context.hasFlag("f"))
             {
                 context.sendTranslated(POSITIVE, "The module {name#module} was successfully reloaded from file!", module.getId());
@@ -164,17 +160,15 @@ public class ModuleCommands extends ContainerCommand
     }
 
     @Command(desc = "Loads a module from the modules directory.")
-    @IParams(@Grouped(@Indexed(label = "file name")))
-    public void load(CubeContext context)
+    public void load(CommandContext context, @Label("filename") String filename)
     {
-        String moduleFileName = context.getArg(0);
-        if (moduleFileName.contains(".") || moduleFileName.contains("/") || moduleFileName.contains("\\"))
+        if (filename.contains(".") || filename.contains("/") || filename.contains("\\"))
         {
             context.sendTranslated(NEGATIVE, "The given file name is invalid!");
             return;
         }
         Path modulesPath = context.getCore().getFileManager().getModulesPath();
-        Path modulePath = modulesPath.resolve(context.getArg(0) + ".jar");
+        Path modulePath = modulesPath.resolve(context.get(0) + ".jar");
         if (!Files.exists(modulePath))
         {
             context.sendTranslated(NEGATIVE, "The given module file was not found! The name might be case sensitive.");
@@ -204,16 +198,18 @@ public class ModuleCommands extends ContainerCommand
     }
 
     @Command(desc = "Get info about a module")
-    @IParams(@Grouped(@Indexed(label = "module", type = ModuleReader.class)))
-    @Flags(@Flag(name = "s", longName = "source"))
-    public void info(CubeContext context)
+    public void info(CommandContext context,
+                     @Label("module") @Reader(ModuleReader.class) Module module,
+                     @Flag(name = "s", longName = "source") boolean source)
     {
-        Module module = context.getArg(0);
         ModuleInfo moduleInfo = module.getInfo();
         context.sendTranslated(POSITIVE, "Name: {input}", moduleInfo.getName());
         context.sendTranslated(POSITIVE, "Description: {input}", moduleInfo.getDescription());
         context.sendTranslated(POSITIVE, "Version: {input}", moduleInfo.getVersion().toString());
-        VanillaCommands.showSourceVersion(context, moduleInfo.getSourceVersion());
+        if (source && moduleInfo.getSourceVersion() != null)
+        {
+            VanillaCommands.showSourceVersion(context, moduleInfo.getSourceVersion());
+        }
 
         Map<String, Version> dependencies = moduleInfo.getDependencies();
         Map<String, Version> softDependencies = moduleInfo.getSoftDependencies();
@@ -222,8 +218,8 @@ public class ModuleCommands extends ContainerCommand
         Set<String> softServices = moduleInfo.getSoftServices();
         Set<String> providedServices = moduleInfo.getProvidedServices();
 
-        String green = "   " + ChatFormat.BRIGHT_GREEN + "- ";
-        String red = "   " + ChatFormat.RED + "- ";
+        String green = "   " + BRIGHT_GREEN + "- ";
+        String red = "   " + RED + "- ";
         if (!providedServices.isEmpty())
         {
             context.sendTranslated(POSITIVE, "Provided services:");

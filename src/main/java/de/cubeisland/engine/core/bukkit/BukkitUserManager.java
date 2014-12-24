@@ -44,6 +44,7 @@ import de.cubeisland.engine.core.user.AbstractUserManager;
 import de.cubeisland.engine.core.user.User;
 import de.cubeisland.engine.core.user.UserAttachment;
 import de.cubeisland.engine.core.user.UserEntity;
+import de.cubeisland.engine.core.util.Profiler;
 import gnu.trove.impl.Constants;
 import gnu.trove.map.TObjectIntMap;
 import gnu.trove.map.hash.TObjectIntHashMap;
@@ -150,20 +151,20 @@ public class BukkitUserManager extends AbstractUserManager
         if (userEntity != null)
         {
             OfflinePlayer offlinePlayer = Bukkit.getOfflinePlayer(name);
-            if (offlinePlayer.getUniqueId().equals(userEntity.getUUID()))
+            if (offlinePlayer.getUniqueId().equals(userEntity.getUniqueId()))
             {
                 User user = new User(userEntity);
                 this.cacheUser(user);
                 return user;
             }
             userEntity.setValue(TABLE_USER.LASTNAME, this.core.getConfiguration().nameConflict.replace("{name}", userEntity.getValue(TABLE_USER.LASTNAME)));
-            userEntity.update();
+            userEntity.asyncUpdate();
         }
         if (create)
         {
             OfflinePlayer offlinePlayer = Bukkit.getOfflinePlayer(name);
             User user = new User(core, offlinePlayer);
-            user.getEntity().insert();
+            user.getEntity().asyncInsert();
             this.cacheUser(user);
             return user;
         }
@@ -179,7 +180,7 @@ public class BukkitUserManager extends AbstractUserManager
             if (user == null)
             {
                 user = new User(core, player);
-                user.getEntity().insert();
+                user.getEntity().asyncInsert();
             }
             this.cacheUser(user);
         }
@@ -219,7 +220,9 @@ public class BukkitUserManager extends AbstractUserManager
                 {
                     scheduledForRemoval.remove(user.getUniqueId());
                     user.getEntity().setValue(TABLE_USER.LASTSEEN, new Timestamp(System.currentTimeMillis()));
-                    user.getEntity().update();
+                    Profiler.startProfiling("removalTask");
+                    user.getEntity().asyncUpdate();
+                    core.getLog().debug("BukkitUserManager:UserListener#onQuit:RemovalTask {}ms", Profiler.endProfiling("removalTask", TimeUnit.MILLISECONDS));
                     if (user.isOnline())
                     {
                         removeCachedUser(user);

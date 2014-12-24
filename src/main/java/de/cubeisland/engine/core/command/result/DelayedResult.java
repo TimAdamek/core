@@ -17,10 +17,12 @@
  */
 package de.cubeisland.engine.core.command.result;
 
-import de.cubeisland.engine.core.command.CommandResult;
-import de.cubeisland.engine.core.command.CubeContext;
+import de.cubeisland.engine.command.result.CommandResult;
+import de.cubeisland.engine.core.command.CommandContext;
+import de.cubeisland.engine.core.command.ModuleProvider;
+import de.cubeisland.engine.core.module.Module;
 
-public abstract class DelayedResult implements CommandResult
+public abstract class DelayedResult implements CommandResult<CommandContext>
 {
     private final long delay;
 
@@ -35,9 +37,10 @@ public abstract class DelayedResult implements CommandResult
     }
 
     @Override
-    public void show(final CubeContext context)
+    public void process(final CommandContext context)
     {
-        final int taskId = context.getCore().getTaskManager().runTaskDelayed(context.getCommand().getModule(), new Runnable()
+        Module module = context.getCommand().getDescriptor().valueFor(ModuleProvider.class);
+        final int taskId = context.getCore().getTaskManager().runTaskDelayed(module, new Runnable()
         {
             @Override
             public void run()
@@ -52,5 +55,5 @@ public abstract class DelayedResult implements CommandResult
         }
     }
 
-    public abstract void run(CubeContext context);
+    public abstract void run(CommandContext context);
 }

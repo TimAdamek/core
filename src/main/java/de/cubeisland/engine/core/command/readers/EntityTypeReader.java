@@ -17,18 +17,20 @@
  */
 package de.cubeisland.engine.core.command.readers;
 
-import java.util.Locale;
-
 import org.bukkit.entity.EntityType;
 
-import de.cubeisland.engine.core.command.ArgumentReader;
+import de.cubeisland.engine.command.CommandInvocation;
+import de.cubeisland.engine.command.parameter.reader.ArgumentReader;
+import de.cubeisland.engine.command.parameter.reader.ReaderException;
+import de.cubeisland.engine.command.parameter.reader.ReaderManager;
 import de.cubeisland.engine.core.util.matcher.Match;
 
-public class EntityTypeReader extends ArgumentReader
+public class EntityTypeReader implements ArgumentReader<EntityType>
 {
+
     @Override
-    public EntityType read(String arg, Locale locale)
+    public EntityType read(ReaderManager manager, Class type, CommandInvocation invocation) throws ReaderException
     {
-        return Match.entity().any(arg);
+        return Match.entity().any(invocation.consume(1));
     }
 }

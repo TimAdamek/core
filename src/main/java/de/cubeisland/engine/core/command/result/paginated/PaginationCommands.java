@@ -17,18 +17,15 @@
  */
 package de.cubeisland.engine.core.command.result.paginated;
 
-import de.cubeisland.engine.core.command.CubeContext;
-import de.cubeisland.engine.core.command.CommandHolder;
-import de.cubeisland.engine.core.command.CubeCommand;
-import de.cubeisland.engine.core.command.reflected.Command;
-import de.cubeisland.engine.core.command.reflected.context.Grouped;
-import de.cubeisland.engine.core.command.reflected.context.IParams;
-import de.cubeisland.engine.core.command.reflected.context.Indexed;
-import de.cubeisland.engine.core.command.reflected.ReflectedCommand;
+import de.cubeisland.engine.command.methodic.Command;
+import de.cubeisland.engine.command.methodic.Param;
+import de.cubeisland.engine.command.methodic.Params;
+import de.cubeisland.engine.command.methodic.parametric.Label;
+import de.cubeisland.engine.core.command.CommandContext;
 
 import static de.cubeisland.engine.core.util.formatter.MessageType.NEGATIVE;
 
-public class PaginationCommands implements CommandHolder
+public class PaginationCommands
 {
     private PaginationManager paginationManager;
 
@@ -37,57 +34,36 @@ public class PaginationCommands implements CommandHolder
         this.paginationManager = paginationManager;
     }
 
-    @Override
-    public Class<? extends CubeCommand> getCommandType()
-    {
-        return ReflectedCommand.class;
-    }
-
     @Command(desc = "Display the next page of your previous command.")
-    public void next(CubeContext context)
+    public void next(CommandContext context)
     {
-        if (paginationManager.hasResult(context.getSender()))
+        if (paginationManager.hasResult(context.getSource()))
         {
-            paginationManager.getResult(context.getSender()).nextPage();
+            paginationManager.getResult(context.getSource()).nextPage();
+            return;
         }
-        else
-        {
-            context.sendTranslated(NEGATIVE, "You don't have any results to show!");
-        }
+        context.sendTranslated(NEGATIVE, "You don't have any results to show!");
     }
 
     @Command(desc = "Display the previous page of your previous command.")
-    public void prev(CubeContext context)
+    public void prev(CommandContext context)
     {
-        if (paginationManager.hasResult(context.getSender()))
+        if (paginationManager.hasResult(context.getSource()))
         {
-            paginationManager.getResult(context.getSender()).prevPage();
+            paginationManager.getResult(context.getSource()).prevPage();
+            return;
         }
-        else
-        {
-            context.sendTranslated(NEGATIVE, "You don't have any results to show!");
-        }
+        context.sendTranslated(NEGATIVE, "You don't have any results to show!");
     }
 
     @Command(desc = "Display the given page of your previous command.")
-    @IParams(@Grouped(@Indexed(label = "pageNumber", type = Integer.class)))
-    public void showpage(CubeContext context)
+    public void showpage(CommandContext context, @Label("page-number") Integer page)
     {
-        if (paginationManager.hasResult(context.getSender()))
+        if (paginationManager.hasResult(context.getSource()))
         {
-            Integer pageNumber = context.getArg(0);
-            if (pageNumber != null)
-            {
-                paginationManager.getResult(context.getSender()).showPage(pageNumber - 1);
-            }
-            else
-            {
-                context.sendTranslated(NEGATIVE, "You have to call the command with a numeric parameter.");
-            }
+            paginationManager.getResult(context.getSource()).showPage(page - 1);
+            return;
         }
-        else
-        {
-            context.sendTranslated(NEGATIVE, "You don't have any results to show!");
-        }
+        context.sendTranslated(NEGATIVE, "You don't have any results to show!");
     }
 }

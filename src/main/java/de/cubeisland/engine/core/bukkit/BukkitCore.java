@@ -52,7 +52,6 @@ import de.cubeisland.engine.core.CubeEngine;
 import de.cubeisland.engine.core.bukkit.VanillaCommands.WhitelistCommand;
 import de.cubeisland.engine.core.bukkit.command.CommandInjector;
 import de.cubeisland.engine.core.bukkit.command.PreCommandListener;
-import de.cubeisland.engine.core.command.ArgumentReader;
 import de.cubeisland.engine.core.command.result.paginated.PaginationCommands;
 import de.cubeisland.engine.core.filesystem.FileManager;
 import de.cubeisland.engine.core.i18n.I18n;
@@ -262,10 +261,7 @@ public final class BukkitCore extends JavaPlugin implements Core
         // depends on: database
         this.moduleManager = new BukkitModuleManager(this, this.getClassLoader());
 
-        // depends on: user manager, world manager
-        ArgumentReader.init(this);
-
-        // depends on: server, config
+        // depends on: user manager, world manager, server, config
         this.commandManager = new BukkitCommandManager(this, new CommandInjector(this));
         this.addInitHook(new Runnable() {
             @Override
@@ -282,18 +278,18 @@ public final class BukkitCore extends JavaPlugin implements Core
         this.corePerms = new CorePerms(this.moduleManager.getCoreModule());
 
         // depends on: server, module manager
-        this.commandManager.registerCommand(new ModuleCommands(this.moduleManager));
-        this.commandManager.registerCommand(new CoreCommands(this));
+        this.commandManager.addCommand(new ModuleCommands(this.moduleManager));
+        this.commandManager.addCommand(new CoreCommands(this));
         if (this.config.improveVanilla)
         {
-            this.commandManager.registerCommands(this.getModuleManager().getCoreModule(), new VanillaCommands(this));
-            this.commandManager.registerCommand(new WhitelistCommand(this));
+            this.commandManager.addCommands(commandManager, this.getModuleManager().getCoreModule(), new VanillaCommands(this));
+            this.commandManager.addCommand(new WhitelistCommand(this));
         }
         this.addInitHook(new Runnable() {
             @Override
             public void run()
             {
-                commandManager.registerCommands(getModuleManager().getCoreModule(), new PaginationCommands(commandManager.getPaginationManager()));
+                commandManager.addCommands(commandManager, getModuleManager().getCoreModule(), new PaginationCommands(commandManager.getPaginationManager()));
                 eventManager.registerListener(getModuleManager().getCoreModule(), commandManager.getPaginationManager());
             }
         });

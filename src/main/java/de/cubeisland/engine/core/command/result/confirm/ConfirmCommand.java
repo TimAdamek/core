@@ -17,36 +17,33 @@
  */
 package de.cubeisland.engine.core.command.result.confirm;
 
-import de.cubeisland.engine.core.command.CommandResult;
-import de.cubeisland.engine.core.command.CubeCommand;
-import de.cubeisland.engine.core.command.CubeContext;
-import de.cubeisland.engine.core.command.CubeContextFactory;
-import de.cubeisland.engine.core.module.Module;
+import de.cubeisland.engine.command.methodic.Command;
+import de.cubeisland.engine.command.result.CommandResult;
+import de.cubeisland.engine.core.command.CommandContext;
 
 import static de.cubeisland.engine.core.util.formatter.MessageType.NEGATIVE;
 import static de.cubeisland.engine.core.util.formatter.MessageType.NEUTRAL;
 
-public class ConfirmCommand extends CubeCommand
+public class ConfirmCommand
 {
     private final ConfirmManager confirmManager;
 
-    public ConfirmCommand(Module module, CubeContextFactory contextFactory, ConfirmManager confirmManager)
+    public ConfirmCommand(ConfirmManager confirmManager)
     {
-        super(module, "confirm", "Confirm a command", contextFactory, null, false);
         this.confirmManager = confirmManager;
     }
 
-    @Override
-    public CommandResult run(CubeContext context)
+    @Command(desc = "Confirm a command")
+    public CommandResult confirm(CommandContext context)
     {
-        int pendingConfirmations = confirmManager.countPendingConfirmations(context.getSender());
+        int pendingConfirmations = confirmManager.countPendingConfirmations(context.getSource());
         if (pendingConfirmations < 1)
         {
             context.sendTranslated(NEGATIVE, "You don't have any pending confirmations!");
             return null;
         }
-        confirmManager.getLastPendingConfirmation(context.getSender()).run();
-        pendingConfirmations = confirmManager.countPendingConfirmations(context.getSender());
+        confirmManager.getLastPendingConfirmation(context.getSource()).run();
+        pendingConfirmations = confirmManager.countPendingConfirmations(context.getSource());
         if (pendingConfirmations > 0)
         {
             context.sendTranslated(NEUTRAL, "You have {amount} pending confirmations", pendingConfirmations);

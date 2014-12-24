@@ -17,18 +17,19 @@
  */
 package de.cubeisland.engine.core.command.readers;
 
-import java.util.Locale;
-
 import org.bukkit.enchantments.Enchantment;
 
-import de.cubeisland.engine.core.command.ArgumentReader;
+import de.cubeisland.engine.command.CommandInvocation;
+import de.cubeisland.engine.command.parameter.reader.ArgumentReader;
+import de.cubeisland.engine.command.parameter.reader.ReaderException;
+import de.cubeisland.engine.command.parameter.reader.ReaderManager;
 import de.cubeisland.engine.core.util.matcher.Match;
 
-public class EnchantmentReader extends ArgumentReader
+public class EnchantmentReader implements ArgumentReader<Enchantment>
 {
     @Override
-    public Enchantment read(String arg, Locale locale)
+    public Enchantment read(ReaderManager manager, Class type, CommandInvocation invocation) throws ReaderException
     {
-        return Match.enchant().enchantment(arg);
+        return Match.enchant().enchantment(invocation.consume(1));
     }
 }

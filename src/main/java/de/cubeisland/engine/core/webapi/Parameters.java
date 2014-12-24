@@ -18,20 +18,22 @@
 package de.cubeisland.engine.core.webapi;
 
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 
-import de.cubeisland.engine.core.command.ArgumentReader;
+import de.cubeisland.engine.command.CommandInvocation;
+import de.cubeisland.engine.command.parameter.reader.ReaderManager;
 
 import static de.cubeisland.engine.core.contract.Contract.expectNotNull;
 
 public class Parameters
 {
     private final Map<String, List<String>> data;
+    private final ReaderManager readerManager;
 
-    public Parameters(Map<String, List<String>> data)
+    public Parameters(Map<String, List<String>> data, ReaderManager readerManager)
     {
         this.data = data;
+        this.readerManager = readerManager;
     }
 
     @SuppressWarnings("unchecked")
@@ -45,7 +47,7 @@ public class Parameters
         String value = values.get(index);
         if (type != String.class)
         {
-            return ArgumentReader.read(type, value, Locale.getDefault());
+            return (T)readerManager.read(type, type, new CommandInvocation(null, value, readerManager)); // TODO fix ME
         }
         return (T)value;
     }

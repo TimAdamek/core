@@ -17,26 +17,27 @@
  */
 package de.cubeisland.engine.core.command.readers;
 
-import java.util.Locale;
-
 import org.bukkit.inventory.ItemStack;
 
+import de.cubeisland.engine.command.CommandInvocation;
+import de.cubeisland.engine.command.parameter.reader.ArgumentReader;
+import de.cubeisland.engine.command.parameter.reader.ReaderException;
+import de.cubeisland.engine.command.parameter.reader.ReaderManager;
 import de.cubeisland.engine.core.CubeEngine;
-import de.cubeisland.engine.core.command.ArgumentReader;
-import de.cubeisland.engine.core.command.exception.ReaderException;
 import de.cubeisland.engine.core.util.matcher.Match;
 
 import static de.cubeisland.engine.core.util.formatter.MessageType.NEGATIVE;
 
-public class ItemStackReader extends ArgumentReader
+public class ItemStackReader implements ArgumentReader<ItemStack>
 {
     @Override
-    public ItemStack read(String arg, Locale locale)
+    public ItemStack read(ReaderManager manager, Class type, CommandInvocation invocation) throws ReaderException
     {
+        String arg = invocation.consume(1);
         ItemStack item = Match.material().itemStack(arg);
         if (item == null)
         {
-            throw new ReaderException(CubeEngine.getI18n().translate(locale, NEGATIVE, "Item {input#item} not found!", arg));
+            throw new ReaderException(CubeEngine.getI18n().translate(invocation.getLocale(), NEGATIVE, "Item {input#item} not found!", arg));
         }
         return item;
     }

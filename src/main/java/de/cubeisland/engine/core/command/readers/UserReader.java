@@ -17,12 +17,12 @@
  */
 package de.cubeisland.engine.core.command.readers;
 
-import java.util.Locale;
-
+import de.cubeisland.engine.command.CommandInvocation;
+import de.cubeisland.engine.command.parameter.reader.ArgumentReader;
+import de.cubeisland.engine.command.parameter.reader.ReaderException;
+import de.cubeisland.engine.command.parameter.reader.ReaderManager;
 import de.cubeisland.engine.core.Core;
 import de.cubeisland.engine.core.CubeEngine;
-import de.cubeisland.engine.core.command.ArgumentReader;
-import de.cubeisland.engine.core.command.exception.ReaderException;
 import de.cubeisland.engine.core.user.User;
 
 import static de.cubeisland.engine.core.util.formatter.MessageType.NEGATIVE;
@@ -30,7 +30,7 @@ import static de.cubeisland.engine.core.util.formatter.MessageType.NEGATIVE;
 /**
  * This argument is used to get users
  */
-public class UserReader extends ArgumentReader
+public class UserReader implements ArgumentReader<User>
 {
     private final Core core;
 
@@ -40,12 +40,13 @@ public class UserReader extends ArgumentReader
     }
 
     @Override
-    public User read(String arg, Locale locale) throws ReaderException
+    public User read(ReaderManager manager, Class type, CommandInvocation invocation) throws ReaderException
     {
+        String arg = invocation.consume(1);
         User user = this.core.getUserManager().findUser(arg);
         if (user == null)
         {
-            throw new ReaderException(CubeEngine.getI18n().translate(locale, NEGATIVE, "Player {user} not found!", arg));
+            throw new ReaderException(CubeEngine.getI18n().translate(invocation.getLocale(), NEGATIVE, "Player {user} not found!", arg));
         }
         return user;
     }

@@ -17,19 +17,19 @@
  */
 package de.cubeisland.engine.core.command.readers;
 
-import java.util.Locale;
+import org.bukkit.entity.Villager.Profession;
 
-import org.bukkit.entity.Villager;
-
-import de.cubeisland.engine.core.command.ArgumentReader;
-import de.cubeisland.engine.core.command.exception.ReaderException;
+import de.cubeisland.engine.command.CommandInvocation;
+import de.cubeisland.engine.command.parameter.reader.ArgumentReader;
+import de.cubeisland.engine.command.parameter.reader.ReaderException;
+import de.cubeisland.engine.command.parameter.reader.ReaderManager;
 import de.cubeisland.engine.core.util.matcher.Match;
 
-public class ProfessionReader extends ArgumentReader
+public class ProfessionReader implements ArgumentReader<Profession>
 {
     @Override
-    public Villager.Profession read(String arg, Locale locale) throws ReaderException
+    public Profession read(ReaderManager manager, Class type, CommandInvocation invocation) throws ReaderException
     {
-        return Match.profession().profession(arg);
+        return Match.profession().profession(invocation.consume(1));
     }
 }

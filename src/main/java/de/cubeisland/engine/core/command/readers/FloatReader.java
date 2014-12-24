@@ -19,32 +19,33 @@ package de.cubeisland.engine.core.command.readers;
 
 import java.text.NumberFormat;
 import java.text.ParseException;
-import java.util.Locale;
 
+import de.cubeisland.engine.command.CommandInvocation;
+import de.cubeisland.engine.command.parameter.reader.ArgumentReader;
+import de.cubeisland.engine.command.parameter.reader.ReaderException;
+import de.cubeisland.engine.command.parameter.reader.ReaderManager;
 import de.cubeisland.engine.core.CubeEngine;
-import de.cubeisland.engine.core.command.ArgumentReader;
-import de.cubeisland.engine.core.command.exception.ReaderException;
+import de.cubeisland.engine.core.util.formatter.MessageType;
 
-import static de.cubeisland.engine.core.util.formatter.MessageType.NEGATIVE;
-
-public class FloatReader extends ArgumentReader
+public class FloatReader implements ArgumentReader<Float>
 {
     @Override
-    public Float read(String arg, Locale locale) throws ReaderException
+    public Float read(ReaderManager manager, Class type, CommandInvocation invocation) throws ReaderException
     {
+        String consumed = invocation.consume(1);
         try
         {
-            return NumberFormat.getInstance(locale).parse(arg).floatValue();
+            return NumberFormat.getInstance(invocation.getLocale()).parse(consumed).floatValue();
         }
         catch (ParseException e)
         {
             try
             {
-                return NumberFormat.getInstance().parse(arg).floatValue(); // Try default locale
+                return NumberFormat.getInstance().parse(consumed).floatValue(); // Try default locale
             }
             catch (ParseException e1)
             {
-                throw new ReaderException(CubeEngine.getI18n().translate(locale, NEGATIVE, "Could not parse {input} to float!", arg));
+                throw new ReaderException(CubeEngine.getI18n().translate(invocation.getLocale(), MessageType.NEGATIVE, "Could not parse {input} to float!", consumed)); // standardized exception message
             }
         }
     }

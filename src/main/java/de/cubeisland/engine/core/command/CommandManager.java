@@ -17,46 +17,24 @@
  */
 package de.cubeisland.engine.core.command;
 
-import de.cubeisland.engine.core.command.parameterized.Completer;
+import de.cubeisland.engine.command.CommandBase;
+import de.cubeisland.engine.command.CommandBuilder;
+import de.cubeisland.engine.command.Dispatcher;
+import de.cubeisland.engine.command.completer.CompleterProvider;
+import de.cubeisland.engine.command.methodic.BasicMethodicCommand;
+import de.cubeisland.engine.command.parameter.reader.ReaderManager;
+import de.cubeisland.engine.core.command.sender.ConsoleCommandSender;
 import de.cubeisland.engine.core.command.result.confirm.ConfirmManager;
 import de.cubeisland.engine.core.command.result.paginated.PaginationManager;
-import de.cubeisland.engine.core.command.sender.ConsoleCommandSender;
 import de.cubeisland.engine.core.module.Module;
 import de.cubeisland.engine.core.util.Cleanable;
 
 /**
  * This class manages the registration of commands.
  */
-public interface CommandManager extends Cleanable
+public interface CommandManager extends Cleanable, Dispatcher, CompleterProvider
 {
-    /**
-     * Registers a command
-     *
-     * @param command the command to register
-     * @param parents the path under which the command should be registered
-     */
-    void registerCommand(CubeCommand command, String... parents);
-
-    void registerCommands(Module module, CommandHolder commandHolder, String... parents);
-
-    /**
-     * Registers all methods annotated as a command in the given command holder object
-     *
-     * @param module        the module to register them for
-     * @param commandHolder the command holder containing the commands
-     * @param parents       the path under which the command should be registered
-     */
-    void registerCommands(Module module, Object commandHolder, Class<? extends CubeCommand> commandType,
-                          String... parents);
-
-    /**
-     * Gets a CubeCommand by its name
-     *
-     * @param name the name
-     *
-     * @return the CubeCommand instance or null if not found
-     */
-    CubeCommand getCommand(String name);
+    ReaderManager getReaderManager();
 
     /**
      * Removes a command by its name
@@ -82,21 +60,25 @@ public interface CommandManager extends Cleanable
 
     ConsoleCommandSender getConsoleSender();
 
-    void logExecution(CommandSender sender, CubeCommand cubeCommand, String[] args);
+    void logExecution(CommandSender sender, CommandBase cubeCommand, String[] args);
 
-    void logTabCompletion(CommandSender sender, CubeCommand cubeCommand, String[] args);
+    void logTabCompletion(CommandSender sender, CommandBase cubeCommand, String[] args);
 
     ConfirmManager getConfirmManager();
 
     PaginationManager getPaginationManager();
 
-    /**
-     * Returns a completer for the first registered class
-     */
-    Completer getDefaultCompleter(Class... types);
+    CommandBuilder<BasicMethodicCommand, CommandOrigin> getCommandBuilder();
+
 
     /**
-     * Registers a completer for given classes
+     * Creates {@link de.cubeisland.engine.command.methodic.BasicMethodicCommand} for all methods annotated as a command
+     * in the given commandHolder and add them to the given dispatcher
+     *
+     * @param dispatcher    the dispatcher to add the commands to
+     * @param module        the module owning the commands
+     * @param commandHolder the command holder containing the command-methods
      */
-    void registerDefaultCompleter(Completer completer, Class... types);
+    @SuppressWarnings("unchecked")
+    void addCommands(Dispatcher dispatcher, Module module, Object commandHolder);
 }

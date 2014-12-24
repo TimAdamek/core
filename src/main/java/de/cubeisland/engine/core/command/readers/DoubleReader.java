@@ -21,17 +21,20 @@ import java.text.NumberFormat;
 import java.text.ParseException;
 import java.util.Locale;
 
+import de.cubeisland.engine.command.CommandInvocation;
+import de.cubeisland.engine.command.parameter.reader.ArgumentReader;
+import de.cubeisland.engine.command.parameter.reader.ReaderException;
+import de.cubeisland.engine.command.parameter.reader.ReaderManager;
 import de.cubeisland.engine.core.CubeEngine;
-import de.cubeisland.engine.core.command.ArgumentReader;
-import de.cubeisland.engine.core.command.exception.ReaderException;
+import de.cubeisland.engine.core.util.formatter.MessageType;
 
-import static de.cubeisland.engine.core.util.formatter.MessageType.NEGATIVE;
-
-public class DoubleReader extends ArgumentReader
+public class DoubleReader implements ArgumentReader<Double>
 {
     @Override
-    public Double read(String arg, Locale locale) throws ReaderException
+    public Double read(ReaderManager manager, Class type, CommandInvocation invocation) throws ReaderException
     {
+        String arg = invocation.consume(1);
+        Locale locale = invocation.getLocale();
         try
         {
             return NumberFormat.getInstance(locale).parse(arg).doubleValue();
@@ -44,7 +47,7 @@ public class DoubleReader extends ArgumentReader
             }
             catch (ParseException e1)
             {
-                throw new ReaderException(CubeEngine.getI18n().translate(locale, NEGATIVE, "Could not parse {input} to double!", arg));
+                throw new ReaderException(CubeEngine.getI18n().translate(locale, MessageType.NEGATIVE, "Could not parse {input} to double!", arg));
             }
         }
     }

@@ -20,10 +20,8 @@ package de.cubeisland.engine.core;
 import java.io.IOException;
 import java.util.logging.Logger;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import de.cubeisland.engine.core.ban.BanManager;
 import de.cubeisland.engine.core.bukkit.EventManager;
-import de.cubeisland.engine.core.command.ArgumentReader;
 import de.cubeisland.engine.core.command.CommandManager;
 import de.cubeisland.engine.core.filesystem.FileManager;
 import de.cubeisland.engine.core.filesystem.TestFileManager;
@@ -55,10 +53,6 @@ import de.cubeisland.engine.reflect.Reflector;
 import de.cubeisland.engine.reflect.codec.ConverterManager;
 import org.joda.time.Duration;
 
-/**
- *
- * @author Phillip Schichtel
- */
 public class TestCore implements Core
 {
     private final Version version = Version.ONE;
@@ -71,7 +65,7 @@ public class TestCore implements Core
 
     {
         CubeEngine.initialize(this);
-        ArgumentReader.init(this);
+        // TODO hope this isn't needed ArgumentReader.init(this);
     }
 
     private TaskManager taskManager = new TestTaskManager();

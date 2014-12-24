@@ -18,7 +18,6 @@
 package de.cubeisland.engine.core;
 
 import java.util.Date;
-import java.util.HashSet;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
@@ -26,37 +25,42 @@ import java.util.concurrent.TimeUnit;
 import org.bukkit.Bukkit;
 import org.bukkit.plugin.PluginManager;
 
+import de.cubeisland.engine.command.CommandInvocation;
+import de.cubeisland.engine.command.filter.Restricted;
+import de.cubeisland.engine.command.methodic.Command;
+import de.cubeisland.engine.command.methodic.Flag;
+import de.cubeisland.engine.command.methodic.Param;
+import de.cubeisland.engine.command.methodic.Params;
+import de.cubeisland.engine.command.methodic.parametric.Desc;
+import de.cubeisland.engine.command.methodic.parametric.Label;
+import de.cubeisland.engine.command.methodic.parametric.Optional;
+import de.cubeisland.engine.command.methodic.parametric.Reader;
+import de.cubeisland.engine.command.parameter.TooFewArgumentsException;
+import de.cubeisland.engine.command.parameter.reader.ArgumentReader;
+import de.cubeisland.engine.command.parameter.reader.ReaderException;
+import de.cubeisland.engine.command.parameter.reader.ReaderManager;
 import de.cubeisland.engine.core.ban.BanManager;
 import de.cubeisland.engine.core.ban.IpBan;
 import de.cubeisland.engine.core.ban.UserBan;
 import de.cubeisland.engine.core.bukkit.BukkitCore;
-import de.cubeisland.engine.core.command.CommandResult;
+import de.cubeisland.engine.core.command.CommandContainer;
+import de.cubeisland.engine.core.command.CommandContext;
 import de.cubeisland.engine.core.command.CommandSender;
-import de.cubeisland.engine.core.command.ContainerCommand;
-import de.cubeisland.engine.core.command.CubeContext;
-import de.cubeisland.engine.core.command.exception.TooFewArgumentsException;
-import de.cubeisland.engine.core.command.reflected.CallAsync;
-import de.cubeisland.engine.core.command.reflected.Command;
-import de.cubeisland.engine.core.command.reflected.CommandPermission;
-import de.cubeisland.engine.core.command.reflected.OnlyIngame;
-import de.cubeisland.engine.core.command.reflected.Unloggable;
-import de.cubeisland.engine.core.command.reflected.context.Flag;
-import de.cubeisland.engine.core.command.reflected.context.Flags;
-import de.cubeisland.engine.core.command.reflected.context.Grouped;
-import de.cubeisland.engine.core.command.reflected.context.IParams;
-import de.cubeisland.engine.core.command.reflected.context.Indexed;
+import de.cubeisland.engine.core.command.annotation.CommandPermission;
+import de.cubeisland.engine.core.command.annotation.Unloggable;
 import de.cubeisland.engine.core.user.User;
+import de.cubeisland.engine.core.user.UserList;
 import de.cubeisland.engine.core.user.UserManager;
 import de.cubeisland.engine.core.util.Profiler;
 import de.cubeisland.engine.logging.LogLevel;
 
 import static de.cubeisland.engine.core.permission.PermDefault.TRUE;
 import static de.cubeisland.engine.core.util.formatter.MessageType.*;
-import static java.util.Arrays.asList;
 
-public class CoreCommands extends ContainerCommand
+@Command(name = "cubeengine", alias = "ce",
+         desc = "These are the basic commands of the CubeEngine.")
+public class CoreCommands extends CommandContainer
 {
-
     private final BukkitCore core;
     private final BanManager banManager;
     private final ConcurrentHashMap<UUID, Long> fails = new ConcurrentHashMap<>();
@@ -64,15 +68,16 @@ public class CoreCommands extends ContainerCommand
 
     public CoreCommands(Core core)
     {
-        super(core.getModuleManager().getCoreModule(), "cubeengine", "These are the basic commands of the CubeEngine.");
-        this.setAliases(new HashSet<>(asList("ce")));
+        super(core.getModuleManager().getCoreModule());
         this.core = (BukkitCore)core;
         this.banManager = core.getBanManager();
         this.um = core.getUserManager();
+
+        core.getCommandManager().getReaderManager().registerReader(new FindUserReader());
     }
 
     @Command(desc = "Reloads the whole CubeEngine")
-    public void reload(CubeContext context)
+    public void reload(CommandContext context)
     {
         context.sendTranslated(POSITIVE, "Reloading CubeEngine! This may take some time...");
         final long startTime = System.currentTimeMillis();
@@ -83,36 +88,35 @@ public class CoreCommands extends ContainerCommand
     }
 
     @Command(desc = "Reloads all of the modules!")
-    @Flags(@Flag(name = "f", longName = "file"))
-    public void reloadmodules(CubeContext context)
+    public void reloadmodules(CommandContext context, @Flag(name = "f", longName = "file") boolean fromFile)
     {
         context.sendTranslated(POSITIVE, "Reloading all modules! This may take some time...");
         Profiler.startProfiling("modulesReload");
-        context.getCore().getModuleManager().reloadModules(context.hasFlag("f"));
+        context.getCore().getModuleManager().reloadModules(fromFile);
         long time = Profiler.endProfiling("modulesReload", TimeUnit.SECONDS);
         context.sendTranslated(POSITIVE, "Modules Reload completed in {integer#time}s!", time);
     }
 
     @Unloggable
     @Command(alias = "setpw", desc = "Sets your password.")
-    @IParams({@Grouped(@Indexed(label = "password")),
-              @Grouped(value = @Indexed(label = "player", type = User.class), req = false)})
-    public void setPassword(CubeContext context)
+    @Params(positional = {@Param(label = "password"),
+                          @Param(label = "player", type = User.class, req = false)})
+    public void setPassword(CommandContext context)
     {
         User target;
-        if (context.hasIndexed(1))
+        if (context.hasPositional(1))
         {
-            target = context.getArg(1);
+            target = context.get(1);
         }
-        else if (context.getSender() instanceof User)
+        else if (context.getSource() instanceof User)
         {
-            target = (User)context.getSender();
+            target = (User)context.getSource();
         }
         else
         {
-            throw new TooFewArgumentsException(context.getSender());
+            throw new TooFewArgumentsException();
         }
-        if (!context.getSender().equals(target))
+        if (!(context.getSource() == target))
         {
             context.ensurePermission(core.perms().COMMAND_SETPASSWORD_OTHER);
             um.setPassword(target, context.getString(0));
@@ -126,21 +130,24 @@ public class CoreCommands extends ContainerCommand
     }
 
     @Command(alias = "clearpw", desc = "Clears your password.")
-    @IParams(@Grouped(value = @Indexed(label = {"player","!*"}, type = User.class), req = false))
-    public void clearPassword(CubeContext context)
+    public void clearPassword(CommandContext context,
+          @Optional
+          @Label("player")
+          @Desc("A List of Players delimited by , or *")
+          UserList users)
     {
-        CommandSender sender = context.getSender();
-        if (context.hasIndexed(0))
+        CommandSender sender = context.getSource();
+        if (users != null)
         {
-            if ("*".equals(context.getString(0)))
+            if (users.isAll())
             {
                 context.ensurePermission(core.perms().COMMAND_CLEARPASSWORD_ALL);
                 um.resetAllPasswords();
                 sender.sendTranslated(POSITIVE, "All passwords reset!");
                 return;
             }
-            User target = context.getArg(0);
-            if (!target.equals(context.getSender()))
+            User target = context.get(0);
+            if (!target.equals(context.getSource()))
             {
                 context.ensurePermission(core.perms().COMMAND_CLEARPASSWORD_OTHER);
             }
@@ -150,7 +157,7 @@ public class CoreCommands extends ContainerCommand
         }
         if (!(sender instanceof User))
         {
-            throw new TooFewArgumentsException(context.getSender());
+            throw new TooFewArgumentsException();
         }
         this.um.resetPassword((User)sender);
         sender.sendTranslated(POSITIVE, "Your password has been reset!");
@@ -158,59 +165,50 @@ public class CoreCommands extends ContainerCommand
 
     @Unloggable
     @Command(desc = "Logs you in with your password!")
-    @IParams(@Grouped(@Indexed(label = "password")))
+    @Params(positional = @Param(label = "password"))
     @CommandPermission(permDefault = TRUE)
-    public void login(CubeContext context)
+    @Restricted(value = User.class, msg = "Only players can log in!")
+    public void login(CommandContext context)
     {
-        CommandSender sender = context.getSender();
-        if (sender instanceof User)
+        User user = (User)context.getSource();
+        if (user.isLoggedIn())
         {
-            User user = (User)sender;
-            if (user.isLoggedIn())
+            context.sendTranslated(POSITIVE, "You are already logged in!");
+            return;
+        }
+        boolean isLoggedIn = um.login(user, context.getString(0));
+        if (isLoggedIn)
+        {
+            user.sendTranslated(POSITIVE, "You logged in successfully!");
+        }
+        user.sendTranslated(NEGATIVE, "Wrong password!");
+        if (this.core.getConfiguration().security.fail2ban)
+        {
+            if (fails.get(user.getUniqueId()) != null)
             {
-                context.sendTranslated(POSITIVE, "You are already logged in!");
-                return;
-            }
-            boolean isLoggedIn = um.login(user, context.getString(0));
-            if (isLoggedIn)
-            {
-                user.sendTranslated(POSITIVE, "You logged in successfully!");
-            }
-            else
-            {
-                user.sendTranslated(NEGATIVE, "Wrong password!");
-                if (this.core.getConfiguration().security.fail2ban)
+                if (fails.get(user.getUniqueId()) + TimeUnit.SECONDS.toMillis(10) > System.currentTimeMillis())
                 {
-                    if (fails.get(user.getUniqueId()) != null)
+                    String msg = user.getTranslation(NEGATIVE, "Too many wrong passwords!");
+                    msg += "\n" + user.getTranslation(NEGATIVE, "For your security you were banned 10 seconds.");
+                    this.banManager.addBan(new UserBan(user.getName(),user.getName(), msg,
+                                                       new Date(System.currentTimeMillis() + TimeUnit.SECONDS.toMillis(this.core.getConfiguration().security.banDuration))));
+                    if (!Bukkit.getServer().getOnlineMode())
                     {
-                        if (fails.get(user.getUniqueId()) + TimeUnit.SECONDS.toMillis(10) > System.currentTimeMillis())
-                        {
-                            String msg = user.getTranslation(NEGATIVE, "Too many wrong passwords! \nFor your security you were banned 10 seconds.");
-                            this.banManager.addBan(new UserBan(user.getName(),user.getName(), msg,
-                                 new Date(System.currentTimeMillis() + TimeUnit.SECONDS.toMillis(this.core.getConfiguration().security.banDuration))));
-                            if (!Bukkit.getServer().getOnlineMode())
-                            {
-                                this.banManager.addBan(new IpBan(user.getAddress().getAddress(),user.getName(),msg,
-                                       new Date(System.currentTimeMillis() + TimeUnit.SECONDS.toMillis(this.core.getConfiguration().security.banDuration))));
-                            }
-                            user.kickPlayer(msg);
-                        }
+                        this.banManager.addBan(new IpBan(user.getAddress().getAddress(),user.getName(),msg,
+                                                         new Date(System.currentTimeMillis() + TimeUnit.SECONDS.toMillis(this.core.getConfiguration().security.banDuration))));
                     }
-                    fails.put(user.getUniqueId(),System.currentTimeMillis());
+                    user.kickPlayer(msg);
                 }
             }
-        }
-        else
-        {
-            sender.sendTranslated(NEGATIVE, "Only players can log in!");
+            fails.put(user.getUniqueId(),System.currentTimeMillis());
         }
     }
 
     @Command(desc = "Logs you out!")
-    @OnlyIngame("You might use /stop for this.")
-    public void logout(CubeContext context)
+    @Restricted(value = User.class, msg = "You might use /stop for this.")
+    public void logout(CommandContext context)
     {
-        User sender = (User)context.getSender();
+        User sender = (User)context.getSource();
         if (sender.isLoggedIn())
         {
             sender.logout();
@@ -221,11 +219,15 @@ public class CoreCommands extends ContainerCommand
     }
 
     @Command(desc = "Toggles the online mode")
-    public void onlinemode(CubeContext context)
+    public void onlinemode(CommandContext context)
     {
-        context.sendTranslated(NEGATIVE, "Not working!");
-        /*
-        final boolean newState = !this.core.getServer().getOnlineMode();
+        if (this.core.getServer().getOnlineMode())
+        {
+            context.sendTranslated(POSITIVE, "The Server is running in online mode");
+            return;
+        }
+        context.sendTranslated(POSITIVE, "The Server is running in offline mode");
+        /* TODO Does not work:
         BukkitUtils.setOnlineMode(newState);
         if (newState)
         {
@@ -239,42 +241,49 @@ public class CoreCommands extends ContainerCommand
     }
 
     @Command(desc = "Changes or displays the log level of the server.")
-    @IParams(@Grouped(value = @Indexed(label = "loglevel", type = LogLevel.class), req = false))
-    public void loglevel(CubeContext context)
+    public void loglevel(CommandContext context, @Optional @Label("loglevel") LogLevel level)
     {
-        if (context.hasIndexed(0))
+        if (level != null)
         {
-            context.getCore().getLog().setLevel(context.<LogLevel>getArg(0));
+            context.getCore().getLog().setLevel(level);
             context.sendTranslated(POSITIVE, "New log level successfully set!");
             return;
         }
         context.sendTranslated(NEUTRAL, "The current log level is: {input#loglevel}", context.getCore().getLog().getLevel().getName());
     }
 
-    @CallAsync
     @Command(alias = "finduser", desc = "Searches for a user in the database")
-    @IParams(@Grouped(@Indexed(label = "name")))
-    public CommandResult searchuser(CubeContext context)
+    public void searchuser(CommandContext context,
+        @Reader(FindUserReader.class)
+        @Label("name")
+        @Desc("The name to search for")
+        User user)
     {
-        final boolean exact = um.findExactUser(context.getString(0)) != null;
-        final User user = um.findUser(context.getString(0), true);
-        return new CommandResult()
+        if (user.getName().equalsIgnoreCase(context.getString(0)))
         {
-            @Override
-            public void show(CubeContext context)
+            context.sendTranslated(POSITIVE, "Matched exactly! User: {user}", user);
+            return;
+        }
+        context.sendTranslated(POSITIVE, "Matched not exactly! User: {user}", user);
+    }
+
+    public static class FindUserReader implements ArgumentReader<User>
+    {
+        @Override
+        public User read(ReaderManager manager, Class type, CommandInvocation invocation) throws ReaderException
+        {
+            String name = invocation.consume(1);
+            UserManager um = CubeEngine.getCore().getUserManager();
+            User found = um.findExactUser(name);
+            if (found == null)
             {
-                if (user == null)
-                {
-                    context.sendTranslated(NEUTRAL, "No match found for {input}!", context.getArg(0));
-                    return;
-                }
-                else if (exact)
-                {
-                    context.sendTranslated(POSITIVE, "Matched exactly! User: {user}", user);
-                    return;
-                }
-                context.sendTranslated(POSITIVE, "Matched not exactly! User: {user}", user);
+                found = um.findUser(name);
             }
-        };
+            if (found == null)
+            {
+                throw new ReaderException("No match found for {input}!", name);
+            }
+            return found;
+        }
     }
 }

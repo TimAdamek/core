@@ -17,9 +17,9 @@
  */
 package de.cubeisland.engine.core.command.result.confirm;
 
-import de.cubeisland.engine.core.command.CommandResult;
+import de.cubeisland.engine.command.result.CommandResult;
+import de.cubeisland.engine.core.command.CommandContext;
 import de.cubeisland.engine.core.command.CommandSender;
-import de.cubeisland.engine.core.command.CubeContext;
 import de.cubeisland.engine.core.module.Module;
 
 import static de.cubeisland.engine.core.util.formatter.MessageType.NONE;
@@ -27,18 +27,18 @@ import static de.cubeisland.engine.core.util.formatter.MessageType.NONE;
 /**
  * A result that should be confirmed via the /confirm command
  */
-public class ConfirmResult implements CommandResult
+public class ConfirmResult implements CommandResult<CommandContext>
 {
     private final Runnable runnable;
     private final CommandSender sender;
     private final Module module;
     private String message = "";
 
-    public ConfirmResult(Runnable runnable, CubeContext context)
+    public ConfirmResult(Runnable runnable, CommandContext context)
     {
         this.runnable = runnable;
-        this.sender = context.getSender();
-        this.module = context.getCommand().getModule();
+        this.sender = context.getSource();
+        this.module = context.getModule();
     }
 
     public void setMessage(String message)
@@ -47,12 +47,12 @@ public class ConfirmResult implements CommandResult
     }
 
     @Override
-    public void show(CubeContext context)
+    public void process(CommandContext context)
     {
         context.getCore().getCommandManager().getConfirmManager().registerConfirmation(this, this.module, sender);
         if (!message.isEmpty())
         {
-            context.sendTranslated(NONE, message, context.getCommand().getName());
+            context.sendTranslated(NONE, message, context.getCommand().getDescriptor().getName());
         }
     }
 

@@ -17,24 +17,25 @@
  */
 package de.cubeisland.engine.core.command.readers;
 
-import java.util.Locale;
-
+import de.cubeisland.engine.command.CommandInvocation;
+import de.cubeisland.engine.command.parameter.reader.ArgumentReader;
+import de.cubeisland.engine.command.parameter.reader.ReaderException;
+import de.cubeisland.engine.command.parameter.reader.ReaderManager;
 import de.cubeisland.engine.core.CubeEngine;
-import de.cubeisland.engine.core.command.ArgumentReader;
-import de.cubeisland.engine.core.command.exception.ReaderException;
 import de.cubeisland.engine.logging.LogLevel;
 
 import static de.cubeisland.engine.core.util.formatter.MessageType.NEGATIVE;
 
-public class LogLevelReader extends ArgumentReader
+public class LogLevelReader implements ArgumentReader<LogLevel>
 {
     @Override
-    public LogLevel read(String arg, Locale locale) throws ReaderException
+    public LogLevel read(ReaderManager manager, Class type, CommandInvocation invocation) throws ReaderException
     {
+        String arg = invocation.consume(1);
         LogLevel logLevel = LogLevel.toLevel(arg);
         if (logLevel == null)
         {
-            throw new ReaderException(CubeEngine.getI18n().translate(locale, NEGATIVE, "The given log level is unknown."));
+            throw new ReaderException(CubeEngine.getI18n().translate(invocation.getLocale(), NEGATIVE, "The given log level is unknown."));
         }
         return logLevel;
     }

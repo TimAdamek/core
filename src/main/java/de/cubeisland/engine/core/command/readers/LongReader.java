@@ -17,26 +17,26 @@
  */
 package de.cubeisland.engine.core.command.readers;
 
-import java.util.Locale;
-
+import de.cubeisland.engine.command.CommandInvocation;
+import de.cubeisland.engine.command.parameter.reader.ArgumentReader;
+import de.cubeisland.engine.command.parameter.reader.ReaderException;
+import de.cubeisland.engine.command.parameter.reader.ReaderManager;
 import de.cubeisland.engine.core.CubeEngine;
-import de.cubeisland.engine.core.command.ArgumentReader;
-import de.cubeisland.engine.core.command.exception.ReaderException;
+import de.cubeisland.engine.core.util.formatter.MessageType;
 
-import static de.cubeisland.engine.core.util.formatter.MessageType.NEGATIVE;
-
-public class LongReader extends ArgumentReader
+public class LongReader implements ArgumentReader<Long>
 {
     @Override
-    public Long read(String arg, Locale locale) throws ReaderException
+    public Long read(ReaderManager manager, Class type, CommandInvocation invocation) throws ReaderException
     {
+        String arg = invocation.consume(1);
         try
         {
             return Long.parseLong(arg);
         }
         catch (NumberFormatException e)
         {
-            throw new ReaderException(CubeEngine.getI18n().translate(locale, NEGATIVE, "Could not parse {input} to long!", arg));
+            throw new ReaderException(CubeEngine.getI18n().translate(invocation.getLocale(), MessageType.NEGATIVE, "Could not parse {input} to long!", arg));
         }
     }
 }

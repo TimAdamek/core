@@ -20,36 +20,36 @@ package de.cubeisland.engine.core.command.result.paginated;
 import java.util.ArrayList;
 import java.util.List;
 
-import de.cubeisland.engine.core.command.CommandResult;
-import de.cubeisland.engine.core.command.CubeContext;
+import de.cubeisland.engine.command.result.CommandResult;
+import de.cubeisland.engine.core.command.CommandContext;
 
 import static de.cubeisland.engine.core.util.formatter.MessageType.NEGATIVE;
 import static de.cubeisland.engine.core.util.formatter.MessageType.NONE;
 
-public class PaginatedResult implements CommandResult
+public class PaginatedResult implements CommandResult<CommandContext>
 {
-    private final CubeContext context;
+    private final CommandContext context;
     private final PaginationIterator iterator;
 
     private int pageNumber = 0;
 
-    public PaginatedResult(CubeContext context, List<String> lines)
+    public PaginatedResult(CommandContext context, List<String> lines)
     {
         this.context = context;
         this.iterator = new StringListIterator(lines);
 
-        context.getCore().getCommandManager().getPaginationManager().registerResult(context.getSender(), this);
+        context.getCore().getCommandManager().getPaginationManager().registerResult(context.getSource(), this);
     }
-    public PaginatedResult(CubeContext context, PaginationIterator iterator)
+    public PaginatedResult(CommandContext context, PaginationIterator iterator)
     {
         this.context = context;
         this.iterator = iterator;
 
-        context.getCore().getCommandManager().getPaginationManager().registerResult(context.getSender(), this);
+        context.getCore().getCommandManager().getPaginationManager().registerResult(context.getSource(), this);
     }
 
     @Override
-    public void show(CubeContext context)
+    public void process(CommandContext context)
     {
         int pageCount = iterator.pageCount(PaginationManager.LINES_PER_PAGE);
         context.sendTranslated(NONE, PaginationManager.HEADER, pageNumber + 1, pageCount);
@@ -93,7 +93,7 @@ public class PaginatedResult implements CommandResult
         if (pageNumber >= 0 && pageNumber < iterator.pageCount(PaginationManager.LINES_PER_PAGE))
         {
             this.pageNumber = pageNumber;
-            this.show(this.context);
+            this.process(this.context);
         }
         else
         {

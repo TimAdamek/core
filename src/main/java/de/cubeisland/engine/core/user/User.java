@@ -104,7 +104,7 @@ public class User extends UserBase implements CommandSender, AttachmentHolder<Us
      */
     public User(UserEntity entity)
     {
-        super(entity.getUUID());
+        super(entity.getUniqueId());
         this.core = CubeEngine.getCore();
         this.entity = entity;
         this.attachments = new THashMap<>();
@@ -252,6 +252,11 @@ public class User extends UserBase implements CommandSender, AttachmentHolder<Us
     public void sendTranslatedN(MessageType type, int n, String singular, String plural, Object... params)
     {
         this.sendMessage(this.getTranslationN(type, n, singular, plural, params));
+    }
+
+    public void sendMessage(MessageType type, String message, Object... params)
+    {
+        this.sendMessage(this.getCore().getI18n().composeMessage(this.getLocale(), type, message, params));
     }
 
     @Override
@@ -599,6 +604,10 @@ public class User extends UserBase implements CommandSender, AttachmentHolder<Us
     @Override
     public boolean equals(Object o)
     {
+        if (o == null)
+        {
+            return false;
+        }
         if (this == o)
         {
             return true;
@@ -609,7 +618,7 @@ public class User extends UserBase implements CommandSender, AttachmentHolder<Us
         }
         else if (o instanceof CommandSender)
         {
-            return ((CommandSender)o).getName().equals(this.getName());
+            return ((CommandSender)o).getUniqueId().equals(this.getUniqueId());
         }
         else if (o instanceof org.bukkit.command.CommandSender)
         {

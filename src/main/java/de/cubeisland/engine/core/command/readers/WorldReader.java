@@ -17,18 +17,18 @@
  */
 package de.cubeisland.engine.core.command.readers;
 
-import java.util.Locale;
-
 import org.bukkit.World;
 
+import de.cubeisland.engine.command.CommandInvocation;
+import de.cubeisland.engine.command.parameter.reader.ArgumentReader;
+import de.cubeisland.engine.command.parameter.reader.ReaderException;
+import de.cubeisland.engine.command.parameter.reader.ReaderManager;
 import de.cubeisland.engine.core.Core;
 import de.cubeisland.engine.core.CubeEngine;
-import de.cubeisland.engine.core.command.ArgumentReader;
-import de.cubeisland.engine.core.command.exception.ReaderException;
 
 import static de.cubeisland.engine.core.util.formatter.MessageType.NEGATIVE;
 
-public class WorldReader extends ArgumentReader
+public class WorldReader implements ArgumentReader<World>
 {
     private final Core core;
 
@@ -38,12 +38,13 @@ public class WorldReader extends ArgumentReader
     }
 
     @Override
-    public World read(String arg, Locale locale) throws ReaderException
+    public World read(ReaderManager manager, Class type, CommandInvocation invocation) throws ReaderException
     {
-        World world = this.core.getWorldManager().getWorld(arg);
+        String name = invocation.consume(1);
+        World world = this.core.getWorldManager().getWorld(name);
         if (world == null)
         {
-            throw new ReaderException(CubeEngine.getI18n().translate(locale, NEGATIVE, "World {input} not found!", arg));
+            throw new ReaderException(CubeEngine.getI18n().translate(invocation.getLocale(), NEGATIVE, "World {input} not found!", name));
         }
         return world;
     }

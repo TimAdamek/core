@@ -51,10 +51,12 @@ public enum ChatFormat
     RESET('r');
 
     private static final Pattern PARSE_FOR_CONSOLE = Pattern.compile("");
-    private static final char BASE_CHAR = '\u00A7';
+    public static final char BASE_CHAR = '\u00A7';
     private static final TCharObjectMap<ChatFormat> FORMAT_CHARS_MAP;
     private static final String FORMAT_CHARS_STRING = "0123456789AaBbCcDdEeFfKkLlMmNnOoRr";
     private static final Pattern STRIP_FORMATS = Pattern.compile(BASE_CHAR + "[" + FORMAT_CHARS_STRING + "]");
+    private static final Pattern STRIP_REDUNDANT_FORMATS = Pattern.compile("(?:[&§][0-9a-fk-r])+([&§][0-9a-fk-r])");
+
     private final char formatChar;
     private final String string;
 
@@ -95,6 +97,18 @@ public enum ChatFormat
             return null;
         }
         return STRIP_FORMATS.matcher(string).replaceAll("");
+    }
+
+    /**
+     * Removes all the redundant format codes from a string
+     *
+     * @param string the string
+     *
+     * @return the stripped string
+     */
+    public static String stripRedundantFormats(String string)
+    {
+        return STRIP_REDUNDANT_FORMATS.matcher(string).replaceAll("$1");
     }
 
     /**

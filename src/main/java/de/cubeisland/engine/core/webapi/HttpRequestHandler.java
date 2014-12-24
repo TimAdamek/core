@@ -94,7 +94,7 @@ public class HttpRequestHandler extends SimpleChannelInboundHandler<FullHttpRequ
 
         boolean authorized = this.server.isAuthorized(inetSocketAddress.getAddress());
         QueryStringDecoder qsDecoder = new QueryStringDecoder(message.getUri(), this.UTF8, true, 100);
-        final Parameters params = new Parameters(qsDecoder.parameters());
+        final Parameters params = new Parameters(qsDecoder.parameters(), core.getCommandManager().getReaderManager());
         User authUser = null;
         if (!authorized)
         {
@@ -107,13 +107,13 @@ public class HttpRequestHandler extends SimpleChannelInboundHandler<FullHttpRequ
             String pass = params.get("pass", String.class);
             if (user == null || pass == null)
             {
-                this.error(ctx, AUTHENTICATION_FAILURE, new ApiRequestException("Could not complete authentication", 200));
+                this.error(ctx, AUTHENTICATION_FAILURE, new ApiRequestException("Could not getSuggestions authentication", 200));
                 return;
             }
             User exactUser = core.getUserManager().findExactUser(user);
             if (exactUser == null || !exactUser.isPasswordSet() || !CubeEngine.getUserManager().checkPassword(exactUser, pass))
             {
-                this.error(ctx, AUTHENTICATION_FAILURE, new ApiRequestException("Could not complete authentication", 200));
+                this.error(ctx, AUTHENTICATION_FAILURE, new ApiRequestException("Could not getSuggestions authentication", 200));
                 return;
             }
             authUser = exactUser;
@@ -129,7 +129,7 @@ public class HttpRequestHandler extends SimpleChannelInboundHandler<FullHttpRequ
         // is this request intended to initialize a websockets connection?
         if (WEBSOCKET_ROUTE.equals(path))
         {
-            WebSocketRequestHandler handler = null;
+            WebSocketRequestHandler handler;
             if (!(ctx.pipeline().last() instanceof WebSocketRequestHandler))
             {
                 handler = new WebSocketRequestHandler(core, server, objectMapper, authUser);

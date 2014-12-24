@@ -17,25 +17,76 @@
  */
 package de.cubeisland.engine.core.bukkit;
 
+import java.lang.reflect.Method;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
+import org.bukkit.Difficulty;
+import org.bukkit.DyeColor;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.World;
-import org.bukkit.command.Command;
+import org.bukkit.World.Environment;
+import org.bukkit.WorldType;
+import org.bukkit.enchantments.Enchantment;
+import org.bukkit.entity.EntityType;
+import org.bukkit.entity.Villager.Profession;
+import org.bukkit.inventory.ItemStack;
 
+import de.cubeisland.engine.command.CommandBase;
+import de.cubeisland.engine.command.CommandBuilder;
+import de.cubeisland.engine.command.CommandDescriptor;
+import de.cubeisland.engine.command.CommandInvocation;
+import de.cubeisland.engine.command.Dispatcher;
+import de.cubeisland.engine.command.DispatcherCommand;
+import de.cubeisland.engine.command.ExceptionHandlerProperty;
+import de.cubeisland.engine.command.ImmutableCommandDescriptor;
+import de.cubeisland.engine.command.Name;
+import de.cubeisland.engine.command.SelfDescribing;
+import de.cubeisland.engine.command.UsageProvider;
+import de.cubeisland.engine.command.completer.Completer;
+import de.cubeisland.engine.command.completer.CompleterProvider;
+import de.cubeisland.engine.command.completer.CompleterProviderProperty;
+import de.cubeisland.engine.command.methodic.BasicMethodicCommand;
+import de.cubeisland.engine.command.methodic.CompositeCommandBuilder;
+import de.cubeisland.engine.command.methodic.MethodicBuilder;
+import de.cubeisland.engine.command.parameter.ParameterUsageGenerator;
+import de.cubeisland.engine.command.parameter.property.Description;
+import de.cubeisland.engine.command.parameter.reader.ReaderManager;
+import de.cubeisland.engine.command.util.property.Property;
 import de.cubeisland.engine.core.Core;
 import de.cubeisland.engine.core.CubeEngine;
 import de.cubeisland.engine.core.bukkit.command.CommandInjector;
-import de.cubeisland.engine.core.bukkit.command.WrappedCubeCommand;
-import de.cubeisland.engine.core.command.AliasCommand;
-import de.cubeisland.engine.core.command.CommandHolder;
-import de.cubeisland.engine.core.command.CommandManager;
+import de.cubeisland.engine.core.command.CommandOrigin;
 import de.cubeisland.engine.core.command.CommandSender;
-import de.cubeisland.engine.core.command.CubeCommand;
-import de.cubeisland.engine.core.command.parameterized.Completer;
-import de.cubeisland.engine.core.command.parameterized.completer.PlayerCompleter;
-import de.cubeisland.engine.core.command.parameterized.completer.WorldCompleter;
-import de.cubeisland.engine.core.command.reflected.ReflectedCommandFactory;
+import de.cubeisland.engine.core.command.ExceptionHandler;
+import de.cubeisland.engine.core.command.MethodicCommandBuilder;
+import de.cubeisland.engine.core.command.ParametricCommandBuilder;
+import de.cubeisland.engine.core.command.completer.ModuleCompleter;
+import de.cubeisland.engine.core.command.property.Loggable;
+import de.cubeisland.engine.core.command.CommandManager;
+import de.cubeisland.engine.core.command.completer.PlayerCompleter;
+import de.cubeisland.engine.core.command.completer.PlayerListCompleter;
+import de.cubeisland.engine.core.command.completer.WorldCompleter;
+import de.cubeisland.engine.core.command.readers.BooleanReader;
+import de.cubeisland.engine.core.command.readers.ByteReader;
+import de.cubeisland.engine.core.command.readers.DifficultyReader;
+import de.cubeisland.engine.core.command.readers.DoubleReader;
+import de.cubeisland.engine.core.command.readers.DyeColorReader;
+import de.cubeisland.engine.core.command.readers.EnchantmentReader;
+import de.cubeisland.engine.core.command.readers.EntityTypeReader;
+import de.cubeisland.engine.core.command.readers.EnvironmentReader;
+import de.cubeisland.engine.core.command.readers.FloatReader;
+import de.cubeisland.engine.core.command.readers.IntReader;
+import de.cubeisland.engine.core.command.readers.ItemStackReader;
+import de.cubeisland.engine.core.command.readers.LogLevelReader;
+import de.cubeisland.engine.core.command.readers.LongReader;
+import de.cubeisland.engine.core.command.readers.OfflinePlayerReader;
+import de.cubeisland.engine.core.command.readers.ProfessionReader;
+import de.cubeisland.engine.core.command.readers.ShortReader;
+import de.cubeisland.engine.core.command.readers.UserReader;
+import de.cubeisland.engine.core.command.readers.WorldReader;
+import de.cubeisland.engine.core.command.readers.WorldTypeReader;
 import de.cubeisland.engine.core.command.result.confirm.ConfirmManager;
 import de.cubeisland.engine.core.command.result.paginated.PaginationManager;
 import de.cubeisland.engine.core.command.sender.ConsoleCommandSender;
@@ -43,17 +94,20 @@ import de.cubeisland.engine.core.module.Module;
 import de.cubeisland.engine.core.user.User;
 import de.cubeisland.engine.core.util.StringUtils;
 import de.cubeisland.engine.logging.Log;
+import de.cubeisland.engine.logging.LogLevel;
 
 import static de.cubeisland.engine.core.contract.Contract.expect;
 
-public class BukkitCommandManager implements CommandManager
+public class BukkitCommandManager extends DispatcherCommand implements CommandManager, SelfDescribing
 {
     private final CommandInjector injector;
     private final ConsoleCommandSender consoleSender;
     private final Log commandLogger;
     private final ConfirmManager confirmManager;
     private final PaginationManager paginationManager;
-    private final ReflectedCommandFactory commandFactory;
+    private final ReaderManager readerManager;
+    private final CommandBuilder<BasicMethodicCommand, CommandOrigin> builder;
+
     private Map<Class, Completer> completers = new HashMap<>();
 
     public BukkitCommandManager(BukkitCore core, CommandInjector injector)
@@ -61,15 +115,60 @@ public class BukkitCommandManager implements CommandManager
         this.consoleSender = new ConsoleCommandSender(core);
         this.injector = injector;
 
-        this.commandFactory = new ReflectedCommandFactory();
+        this.builder = new CompositeCommandBuilder<>(new MethodicCommandBuilder(), new ParametricCommandBuilder());
 
         this.commandLogger = core.getLogFactory().getLog(Core.class, "Commands");
         // TODO finish ConfirmManager
         this.confirmManager = new ConfirmManager(this, core);
         this.paginationManager = new PaginationManager(core);
 
-        this.registerDefaultCompleter(new PlayerCompleter(), User.class);
+        this.registerDefaultCompleter(new PlayerCompleter(), User.class, OfflinePlayer.class);
         this.registerDefaultCompleter(new WorldCompleter(), World.class);
+        this.registerDefaultCompleter(new ModuleCompleter(core), Module.class);
+
+        this.registerDefaultCompleter(new PlayerListCompleter(core), PlayerListCompleter.class);
+
+        this.readerManager = new ReaderManager();
+        this.readerManager.registerDefaultReader();
+
+        readerManager.registerReader(new ByteReader(), Byte.class, byte.class);
+        readerManager.registerReader(new ShortReader(), Short.class, short.class);
+        readerManager.registerReader(new IntReader(), Integer.class, int.class);
+        readerManager.registerReader(new LongReader(), Long.class, long.class);
+        readerManager.registerReader(new FloatReader(), Float.class, float.class);
+        readerManager.registerReader(new DoubleReader(), Double.class, double.class);
+
+        readerManager.registerReader(new BooleanReader(core), Boolean.class, boolean.class);
+        readerManager.registerReader(new EnchantmentReader(), Enchantment.class);
+        readerManager.registerReader(new ItemStackReader(), ItemStack.class);
+        readerManager.registerReader(new UserReader(core), User.class);
+        readerManager.registerReader(new WorldReader(core), World.class);
+        readerManager.registerReader(new EntityTypeReader(), EntityType.class);
+        readerManager.registerReader(new DyeColorReader(), DyeColor.class);
+        readerManager.registerReader(new ProfessionReader(), Profession.class);
+        readerManager.registerReader(new OfflinePlayerReader(core), OfflinePlayer.class);
+        readerManager.registerReader(new EnvironmentReader(), Environment.class);
+        readerManager.registerReader(new WorldTypeReader(), WorldType.class);
+        readerManager.registerReader(new DifficultyReader(), Difficulty.class);
+        readerManager.registerReader(new LogLevelReader(), LogLevel.class);
+
+        ((ImmutableCommandDescriptor)getDescriptor()).setProperty(new ExceptionHandlerProperty(new ExceptionHandler(core)));
+    }
+
+    @Override
+    public CommandDescriptor selfDescribe()
+    {
+        ImmutableCommandDescriptor descriptor = new ImmutableCommandDescriptor();
+        descriptor.setProperty(new Name(""));
+        descriptor.setProperty(new Description("Base CommandDispatcher for CubeEngine"));
+        descriptor.setProperty(new UsageProvider(new ParameterUsageGenerator()));
+        return descriptor;
+    }
+
+    @Override
+    public ReaderManager getReaderManager()
+    {
+        return readerManager;
     }
 
     public CommandInjector getInjector()
@@ -80,6 +179,12 @@ public class BukkitCommandManager implements CommandManager
     public void removeCommand(String name, boolean completely)
     {
         this.injector.removeCommand(name, completely);
+    }
+
+    @Override
+    public CommandBuilder<BasicMethodicCommand, CommandOrigin> getCommandBuilder()
+    {
+        return this.builder;
     }
 
     public void removeCommands(Module module)
@@ -97,76 +202,14 @@ public class BukkitCommandManager implements CommandManager
         this.injector.shutdown();
     }
 
-    public void registerCommand(CubeCommand command, String... parents)
+    @Override
+    public boolean addCommand(CommandBase command)
     {
-        if (command.getParent() != null)
-        {
-            throw new IllegalArgumentException("The given command is already registered!");
-        }
-        command.getContextFactory().calculateArgBounds();
-        CubeCommand parentCommand = null;
-        for (String parent : parents)
-        {
-            if (parentCommand == null)
-            {
-                parentCommand = this.getCommand(parent);
-            }
-            else
-            {
-                parentCommand = parentCommand.getChild(parent);
-            }
-            if (parentCommand == null)
-            {
-                throw new IllegalArgumentException("Parent command '" + parent + "' is not registered!");
-            }
-        }
-
-        if (parentCommand == null)
-        {
-            this.injector.registerCommand(command);
-        }
-        else
-        {
-            parentCommand.addChild(command);
-        }
-
-        if (!(command instanceof AliasCommand))
-        {
-            command.registerPermission();
-        }
-
-        if (command instanceof CommandHolder)
-        {
-            String[] newParents = new String[parents.length + 1];
-            newParents[parents.length] = command.getName();
-            System.arraycopy(parents, 0, newParents, 0, parents.length);
-
-            this.registerCommands(command.getModule(), (CommandHolder)command, newParents);
-        }
-    }
-
-    public void registerCommands(Module module, CommandHolder commandHolder, String... parents)
-    {
-        this.registerCommands(module, commandHolder, commandHolder.getCommandType(), parents);
-    }
-
-    @SuppressWarnings("unchecked")
-    public void registerCommands(Module module, Object commandHolder, Class<? extends CubeCommand> commandType, String... parents)
-    {
-        for (CubeCommand command : commandFactory.parseCommands(module, commandHolder))
-        {
-            this.registerCommand(command, parents);
-        }
-    }
-
-    public CubeCommand getCommand(String name)
-    {
-        Command command = this.injector.getCommand(name);
-        if (command != null && command instanceof WrappedCubeCommand)
-        {
-            return ((WrappedCubeCommand)command).getCommand();
-        }
-        return null;
+        boolean b = super.addCommand(command);
+        // TODO perm registration
+        // TODO handle perm when removing cmd from parent
+        this.injector.registerCommand(command); // register at bukkit
+        return b;
     }
 
     public boolean runCommand(CommandSender sender, String commandLine)
@@ -183,20 +226,20 @@ public class BukkitCommandManager implements CommandManager
     }
 
     @Override
-    public void logExecution(CommandSender sender, CubeCommand command, String[] args)
+    public void logExecution(CommandSender sender, CommandBase command, String[] args)
     {
-        if (command.isLoggable())
+        if (command.getDescriptor().valueFor(Loggable.class))
         {
-            this.commandLogger.debug("execute {} {} {}", sender.getName(), command.getName(), StringUtils.implode(" ", args));
+            this.commandLogger.debug("execute {} {} {}", sender.getName(), command.getDescriptor().getName(), StringUtils.implode(" ", args));
         }
     }
 
     @Override
-    public void logTabCompletion(CommandSender sender, CubeCommand command, String[] args)
+    public void logTabCompletion(CommandSender sender, CommandBase command, String[] args)
     {
-        if (command.isLoggable())
+        if (command.getDescriptor().valueFor(Loggable.class))
         {
-            this.commandLogger.debug("complete {} {} {}", sender.getName(), command.getName(), StringUtils.implode(" ", args));
+            this.commandLogger.debug("getSuggestions {} {} {}", sender.getName(), command.getDescriptor().getName(), StringUtils.implode(" ", args));
         }
     }
 
@@ -232,6 +275,34 @@ public class BukkitCommandManager implements CommandManager
         for (Class type : types)
         {
             this.completers.put(type, completer);
+            this.completers.put(completer.getClass(), completer);
+        }
+    }
+
+    @Override
+    public Dispatcher getBaseDispatcher()
+    {
+        return this;
+    }
+
+    /**
+     * Creates {@link de.cubeisland.engine.command.methodic.BasicMethodicCommand} for all methods annotated as a command
+     * in the given commandHolder and add them to the given dispatcher
+     *
+     * @param dispatcher    the dispatcher to add the commands to
+     * @param module        the module owning the commands
+     * @param commandHolder the command holder containing the command-methods
+     */
+    @SuppressWarnings("unchecked")
+    public void addCommands(Dispatcher dispatcher, Module module, Object commandHolder)
+    {
+        for (Method method : MethodicBuilder.getMethods(commandHolder.getClass()))
+        {
+            BasicMethodicCommand cmd = this.getCommandBuilder().buildCommand(new CommandOrigin(method, commandHolder, module));
+            if (cmd != null)
+            {
+                dispatcher.addCommand(cmd);
+            }
         }
     }
 }

@@ -17,27 +17,27 @@
  */
 package de.cubeisland.engine.core.command.readers;
 
-import java.util.Locale;
-
+import de.cubeisland.engine.command.CommandInvocation;
+import de.cubeisland.engine.command.parameter.reader.ArgumentReader;
+import de.cubeisland.engine.command.parameter.reader.ReaderException;
+import de.cubeisland.engine.command.parameter.reader.ReaderManager;
 import de.cubeisland.engine.core.CubeEngine;
-import de.cubeisland.engine.core.command.ArgumentReader;
-import de.cubeisland.engine.core.command.exception.ReaderException;
+import de.cubeisland.engine.core.util.formatter.MessageType;
 
-import static de.cubeisland.engine.core.util.formatter.MessageType.NEGATIVE;
-
-public class ByteReader extends ArgumentReader
+public class ByteReader implements ArgumentReader<Byte>
 {
     @Override
-    public Byte read(String arg, Locale locale) throws ReaderException
+    public Byte read(ReaderManager manager, Class type, CommandInvocation invocation) throws ReaderException
     {
-        String num = arg.replace(',', '.').replace(".", "");
+
+        String num = invocation.consume(1);
         try
         {
-            return Byte.parseByte(num);
+            return Byte.parseByte(num.replace(',', '.').replace(".", ""));
         }
         catch (NumberFormatException e)
         {
-            throw new ReaderException(CubeEngine.getI18n().translate(locale, NEGATIVE, "Could not parse {input} to a byte!", arg));
+            throw new ReaderException(CubeEngine.getI18n().translate(invocation.getLocale(), MessageType.NEGATIVE, "Could not parse {input} to a byte!", num));
         }
     }
 }

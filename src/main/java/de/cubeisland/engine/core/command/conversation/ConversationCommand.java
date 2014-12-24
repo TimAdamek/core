@@ -17,49 +17,41 @@
  */
 package de.cubeisland.engine.core.command.conversation;
 
-import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.Stack;
+import java.util.UUID;
 
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.event.player.PlayerChatTabCompleteEvent;
 
-import de.cubeisland.engine.core.command.CommandResult;
-import de.cubeisland.engine.core.command.CubeCommand;
-import de.cubeisland.engine.core.command.CubeContext;
-import de.cubeisland.engine.core.command.parameterized.CommandFlag;
-import de.cubeisland.engine.core.command.parameterized.CommandParameter;
+import de.cubeisland.engine.command.CommandInvocation;
+import de.cubeisland.engine.core.command.CommandContainer;
+import de.cubeisland.engine.core.command.ModuleProvider;
 import de.cubeisland.engine.core.module.Module;
 import de.cubeisland.engine.core.user.User;
 import de.cubeisland.engine.core.util.ChatFormat;
-import de.cubeisland.engine.core.util.StringUtils;
-import gnu.trove.set.hash.TLongHashSet;
 
-import static de.cubeisland.engine.core.util.formatter.MessageType.NEUTRAL;
-
-public abstract class ConversationCommand extends CubeCommand implements Listener
+public abstract class ConversationCommand extends CommandContainer implements Listener
 {
-    private final TLongHashSet usersInMode = new TLongHashSet();
+    private final Set<UUID> usersInMode = new HashSet<>();
 
-    protected ConversationCommand(Module module, ConversationContextFactory contextFactory)
+    protected ConversationCommand(Module module)
     {
-        super(module, "", "", contextFactory, null, false);
+        super(module);
         module.getCore().getEventManager().registerListener(module, this);
     }
 
-    @Override
     public Module getModule()
     {
-        return super.getModule();
+        return this.getDescriptor().valueFor(ModuleProvider.class);
     }
 
     public boolean hasUser(User user)
     {
-        return usersInMode.contains(user.getId());
+        return usersInMode.contains(user.getUniqueId());
     }
 
     @EventHandler
@@ -68,20 +60,21 @@ public abstract class ConversationCommand extends CubeCommand implements Listene
         User user = this.getModule().getCore().getUserManager().getExactUser(event.getPlayer().getUniqueId());
         if (this.hasUser(user))
         {
-            user.sendMessage(ChatFormat.PURPLE + "[" + ChatFormat.WHITE + "ChatCommand" + ChatFormat.PURPLE + "] " + ChatFormat.WHITE + event.getMessage());
-            Stack<String> labels = new Stack<>();
-            labels.push(this.getLabel());
-            CubeContext context = this.getContextFactory().parse(this, user, labels, StringUtils.explode(" ", event.getMessage()));
-            if (event.getMessage().startsWith("?"))
-            {
-                this.getChild("?").run(context);
-            }
-            else
-            {
-                this.run(context);
-            }
+            user.sendMessage(
+                ChatFormat.PURPLE + "[" + ChatFormat.WHITE + this.getDescriptor().getName() + ChatFormat.PURPLE + "] "
+                    + ChatFormat.WHITE + event.getMessage());
+
+            String message = event.getMessage();
+            CommandInvocation invocation = newInvocation(user, message);
+            this.execute(invocation);
+
             event.setCancelled(true);
         }
+    }
+
+    private CommandInvocation newInvocation(User user, String message)
+    {
+        return new CommandInvocation(user, message, this.getModule().getCore().getCommandManager().getReaderManager());
     }
 
     @EventHandler
@@ -91,139 +84,32 @@ public abstract class ConversationCommand extends CubeCommand implements Listene
         if (this.hasUser(user))
         {
             event.getTabCompletions().clear();
-
-            Stack<String> labels = new Stack<>();
-            labels.push(this.getLabel());
-            CubeContext context = this.getContextFactory().parse(this, user, labels, StringUtils.explode(" ",
-                                                                                                         event.getChatMessage()));
-            event.getTabCompletions().addAll(this.tabComplete(context));
-        }
-    }
-
-    @Override
-    public List<String> tabComplete(CubeContext context)
-    {
-        List<String> list = new ArrayList<>();
-        Set<String> flags = new HashSet<>();
-        Set<String> params = new HashSet<>();
-        for (CommandFlag flag : this.getContextFactory().getFlags())
-        {
-            flags.add(flag.getLongName().toLowerCase());
-        }
-        for (CommandParameter param : this.getContextFactory().getParameters())
-        {
-            params.add(param.getName().toLowerCase());
-        }
-        List<Object> args = context.getIndexed();
-        if (args.isEmpty())
-        {
-            list.addAll(flags);
-            list.addAll(params);
-        }
-        else
-        {
-            final int argc = args.size();
-            String lastArg = args.get(argc - 1).toString().toLowerCase();
-            String beforeLastArg = argc - 2 >= 0 ? args.get(argc - 2).toString() : null;
-            if (lastArg.isEmpty())
+            String message = event.getChatMessage();
+            List<String> suggestions = this.getSuggestions(newInvocation(user, message));
+            if (suggestions != null)
             {
-                //check for named
-                if (beforeLastArg != null && params.contains(beforeLastArg.toLowerCase()))
-                {
-                    return this.getContextFactory().getParameter(beforeLastArg).getCompleter().complete(context, lastArg);
-                }
-                else
-                {
-                    list.addAll(flags);
-                    list.addAll(params);
-                }
-            }
-            else
-            {
-                //check for named
-                if (beforeLastArg != null && params.contains(beforeLastArg.toLowerCase()))
-                {
-                    return this.getContextFactory().getParameter(beforeLastArg).getCompleter().complete(context, lastArg);
-                }
-                else // check starting
-                {
-                    for (String flag : flags)
-                    {
-                        if (flag.startsWith(lastArg))
-                        {
-                            list.add(flag);
-                        }
-                    }
-                    for (String param : params)
-                    {
-                        if (param.startsWith(lastArg))
-                        {
-                            list.add(param);
-                        }
-                    }
-                }
+                event.getTabCompletions().addAll(suggestions);
             }
         }
-        return list;
-    }
-
-    @Override
-    public ConversationContextFactory getContextFactory()
-    {
-        return (ConversationContextFactory)super.getContextFactory();
     }
 
     /**
-     * Adds a user to this chatcommands internal list
+     * Adds a user to this chat-commands internal list
      *
-     * @param user
+     * @param user the user to add
      */
     public boolean addUser(User user)
     {
-        return this.usersInMode.add(user.getId());
+        return this.usersInMode.add(user.getUniqueId());
     }
 
     /**
-     * Removes a user from this chatcommands internal list
+     * Removes a user from this chat-commands internal list
      *
-     * @param user
+     * @param user the user tp remove
      */
     public void removeUser(User user)
     {
-        this.usersInMode.remove(user.getId());
-    }
-
-    @Override
-    protected void addHelp()
-    {
-        this.addChild(new ConversationHelpCommand(this));
-    }
-
-    public static class ConversationHelpCommand extends HelpCommand
-    {
-        public ConversationHelpCommand(CubeCommand target)
-        {
-            super(target);
-        }
-
-        @Override
-        public CommandResult run(CubeContext context)
-        {
-            context.sendTranslated(NEUTRAL, "Flags:");
-            Set<String> flags = new HashSet<>();
-            for (CommandFlag flag : target.getContextFactory().getFlags())
-            {
-                flags.add(flag.getLongName().toLowerCase());
-            }
-            context.sendMessage("    " + StringUtils.implode(ChatFormat.GREY + ", " + ChatFormat.WHITE, flags));
-            context.sendTranslated(NEUTRAL, "Parameters:");
-            Set<String> params  = new HashSet<>();
-            for (CommandParameter param : target.getContextFactory().getParameters())
-            {
-                params.add(param.getName().toLowerCase());
-            }
-            context.sendMessage("    " + StringUtils.implode(ChatFormat.GREY + ", " + ChatFormat.WHITE, params));
-            return null;
-        }
+        this.usersInMode.remove(user.getUniqueId());
     }
 }
