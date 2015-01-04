@@ -20,6 +20,7 @@ package de.cubeisland.engine.core;
 import java.io.IOException;
 import java.util.logging.Logger;
 
+import de.cubeisland.engine.converter.ConverterManager;
 import de.cubeisland.engine.core.ban.BanManager;
 import de.cubeisland.engine.core.bukkit.EventManager;
 import de.cubeisland.engine.core.command.CommandManager;
@@ -45,12 +46,11 @@ import de.cubeisland.engine.core.util.converter.VersionConverter;
 import de.cubeisland.engine.core.util.matcher.Match;
 import de.cubeisland.engine.core.webapi.ApiServer;
 import de.cubeisland.engine.core.world.WorldManager;
-import de.cubeisland.engine.logging.DefaultLogFactory;
-import de.cubeisland.engine.logging.Log;
-import de.cubeisland.engine.logging.LogLevel;
-import de.cubeisland.engine.logging.target.PrintTarget;
+import de.cubeisland.engine.logscribe.DefaultLogFactory;
+import de.cubeisland.engine.logscribe.Log;
+import de.cubeisland.engine.logscribe.LogLevel;
+import de.cubeisland.engine.logscribe.target.PrintTarget;
 import de.cubeisland.engine.reflect.Reflector;
-import de.cubeisland.engine.reflect.codec.ConverterManager;
 import org.joda.time.Duration;
 
 public class TestCore implements Core
@@ -65,7 +65,6 @@ public class TestCore implements Core
 
     {
         CubeEngine.initialize(this);
-        // TODO hope this isn't needed ArgumentReader.init(this);
     }
 
     private TaskManager taskManager = new TestTaskManager();
@@ -73,10 +72,10 @@ public class TestCore implements Core
     public TestCore()
     {
         ConverterManager manager = this.configFactory.getDefaultConverterManager();
-        manager.registerConverter(LogLevel.class, new LevelConverter());
-        manager.registerConverter(User.class, new UserConverter());
-        manager.registerConverter(Duration.class, new DurationConverter());
-        manager.registerConverter(Version.class, new VersionConverter());
+        manager.registerConverter(new LevelConverter(), LogLevel.class);
+        manager.registerConverter(new UserConverter(), User.class);
+        manager.registerConverter(new DurationConverter(), Duration.class);
+        manager.registerConverter(new VersionConverter(), Version.class);
 
         this.logFactory = new LogFactory(this, Logger.getLogger(TestCore.class.getName()));
         DefaultLogFactory factory = new DefaultLogFactory();

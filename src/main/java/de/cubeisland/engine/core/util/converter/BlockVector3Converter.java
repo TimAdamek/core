@@ -17,23 +17,23 @@
  */
 package de.cubeisland.engine.core.util.converter;
 
-import de.cubeisland.engine.reflect.codec.ConverterManager;
-import de.cubeisland.engine.reflect.codec.converter.Converter;
-import de.cubeisland.engine.reflect.exception.ConversionException;
-import de.cubeisland.engine.reflect.node.IntNode;
-import de.cubeisland.engine.reflect.node.MapNode;
-import de.cubeisland.engine.reflect.node.Node;
+import de.cubeisland.engine.converter.ConversionException;
+import de.cubeisland.engine.converter.ConverterManager;
+import de.cubeisland.engine.converter.converter.SingleClassConverter;
+import de.cubeisland.engine.converter.node.IntNode;
+import de.cubeisland.engine.converter.node.MapNode;
+import de.cubeisland.engine.converter.node.Node;
 import de.cubeisland.engine.core.util.math.BlockVector3;
 
-public class BlockVector3Converter implements Converter<BlockVector3>
+public class BlockVector3Converter extends SingleClassConverter<BlockVector3>
 {
     @Override
     public Node toNode(BlockVector3 blockVector3, ConverterManager converterManager) throws ConversionException
     {
         MapNode mapNode = MapNode.emptyMap();
-        mapNode.setExactNode("x", new IntNode(blockVector3.x));
-        mapNode.setExactNode("y", new IntNode(blockVector3.y));
-        mapNode.setExactNode("z", new IntNode(blockVector3.z));
+        mapNode.set("x", new IntNode(blockVector3.x));
+        mapNode.set("y", new IntNode(blockVector3.y));
+        mapNode.set("z", new IntNode(blockVector3.z));
         return mapNode;
     }
 
@@ -42,9 +42,9 @@ public class BlockVector3Converter implements Converter<BlockVector3>
     {
         if (node instanceof MapNode)
         {
-            Node x = ((MapNode)node).getExactNode("x");
-            Node y = ((MapNode)node).getExactNode("y");
-            Node z = ((MapNode)node).getExactNode("z");
+            Node x = ((MapNode)node).get("x");
+            Node y = ((MapNode)node).get("y");
+            Node z = ((MapNode)node).get("z");
             return new BlockVector3((Integer)converterManager.convertFromNode(x, Integer.class),
                                     (Integer)converterManager.convertFromNode(y, Integer.class),
                                     (Integer)converterManager.convertFromNode(z, Integer.class));

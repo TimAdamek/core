@@ -15,15 +15,21 @@
  * You should have received a copy of the GNU General Public License
  * along with CubeEngine.  If not, see <http://www.gnu.org/licenses/>.
  */
-package de.cubeisland.engine.core.command.property;
+package de.cubeisland.engine.core.storage.database;
 
-import de.cubeisland.engine.command.CommandBase;
-import de.cubeisland.engine.command.util.property.AbstractProperty;
+import de.cubeisland.engine.core.CubeEngine;
+import de.cubeisland.engine.core.task.thread.BaseThreadFactory;
 
-public class ParentCommand extends AbstractProperty<CommandBase>
+public class DatabaseThreadFactory extends BaseThreadFactory
 {
-    public ParentCommand(CommandBase value)
+    public DatabaseThreadFactory()
     {
-        super(value);
+        super(CubeEngine.class.getSimpleName() + " - " + Database.class.getSimpleName(), Database.class.getPackage().getName());
+    }
+
+    @Override
+    protected Thread createThread(ThreadGroup threadGroup, Runnable r, String name)
+    {
+        return new Thread(threadGroup, r, name);
     }
 }

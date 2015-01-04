@@ -26,7 +26,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import de.cubeisland.engine.core.Core;
 import de.cubeisland.engine.core.user.User;
-import de.cubeisland.engine.logging.Log;
+import de.cubeisland.engine.logscribe.Log;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
@@ -98,7 +98,7 @@ public class WebSocketRequestHandler extends SimpleChannelInboundHandler<WebSock
     }
 
     @Override
-    protected void messageReceived(ChannelHandlerContext ctx, WebSocketFrame frame) throws Exception
+    protected void channelRead0(ChannelHandlerContext ctx, WebSocketFrame frame) throws Exception
     {
         this.last = ctx;
         if (frame instanceof CloseWebSocketFrame)

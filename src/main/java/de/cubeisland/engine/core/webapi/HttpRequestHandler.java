@@ -30,7 +30,7 @@ import de.cubeisland.engine.core.CubeEngine;
 import de.cubeisland.engine.core.module.service.Permission;
 import de.cubeisland.engine.core.user.User;
 import de.cubeisland.engine.core.webapi.exception.ApiRequestException;
-import de.cubeisland.engine.logging.Log;
+import de.cubeisland.engine.logscribe.Log;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
@@ -75,7 +75,7 @@ public class HttpRequestHandler extends SimpleChannelInboundHandler<FullHttpRequ
     }
 
     @Override
-    protected void messageReceived(ChannelHandlerContext ctx, FullHttpRequest message) throws Exception
+    protected void channelRead0(ChannelHandlerContext ctx, FullHttpRequest message) throws Exception
     {
         InetSocketAddress inetSocketAddress = (InetSocketAddress)ctx.channel().remoteAddress();
         this.log.info("{} connected...", inetSocketAddress.getAddress().getHostAddress());
@@ -107,13 +107,13 @@ public class HttpRequestHandler extends SimpleChannelInboundHandler<FullHttpRequ
             String pass = params.get("pass", String.class);
             if (user == null || pass == null)
             {
-                this.error(ctx, AUTHENTICATION_FAILURE, new ApiRequestException("Could not getSuggestions authentication", 200));
+                this.error(ctx, AUTHENTICATION_FAILURE, new ApiRequestException("Could not complete authentication", 200));
                 return;
             }
             User exactUser = core.getUserManager().findExactUser(user);
             if (exactUser == null || !exactUser.isPasswordSet() || !CubeEngine.getUserManager().checkPassword(exactUser, pass))
             {
-                this.error(ctx, AUTHENTICATION_FAILURE, new ApiRequestException("Could not getSuggestions authentication", 200));
+                this.error(ctx, AUTHENTICATION_FAILURE, new ApiRequestException("Could not complete authentication", 200));
                 return;
             }
             authUser = exactUser;

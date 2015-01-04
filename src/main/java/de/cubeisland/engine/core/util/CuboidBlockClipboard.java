@@ -22,26 +22,26 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
-import net.minecraft.server.v1_7_R4.NBTTagCompound;
-import net.minecraft.server.v1_7_R4.NBTTagInt;
+import net.minecraft.server.v1_8_R1.NBTTagCompound;
+import net.minecraft.server.v1_8_R1.NBTTagInt;
 
 import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockState;
 
+import de.cubeisland.engine.converter.ConversionException;
+import de.cubeisland.engine.converter.ConverterManager;
+import de.cubeisland.engine.converter.converter.SingleClassConverter;
+import de.cubeisland.engine.converter.node.IntNode;
+import de.cubeisland.engine.converter.node.ListNode;
+import de.cubeisland.engine.converter.node.MapNode;
+import de.cubeisland.engine.converter.node.Node;
+import de.cubeisland.engine.converter.node.NullNode;
 import de.cubeisland.engine.core.CubeEngine;
 import de.cubeisland.engine.core.bukkit.NBTUtils;
 import de.cubeisland.engine.core.util.math.BlockVector3;
 import de.cubeisland.engine.reflect.Reflector;
-import de.cubeisland.engine.reflect.codec.ConverterManager;
-import de.cubeisland.engine.reflect.codec.converter.Converter;
-import de.cubeisland.engine.reflect.exception.ConversionException;
-import de.cubeisland.engine.reflect.node.IntNode;
-import de.cubeisland.engine.reflect.node.ListNode;
-import de.cubeisland.engine.reflect.node.MapNode;
-import de.cubeisland.engine.reflect.node.Node;
-import de.cubeisland.engine.reflect.node.NullNode;
 
 import static de.cubeisland.engine.core.bukkit.NBTUtils.convertNBTToNode;
 
@@ -160,31 +160,31 @@ public class CuboidBlockClipboard
         }
     }
 
-    public static class CuboidBlockClipboardConverter implements Converter<CuboidBlockClipboard>
+    public static class CuboidBlockClipboardConverter extends SingleClassConverter<CuboidBlockClipboard>
     {
         public CuboidBlockClipboardConverter(Reflector factory)
         {
             ConverterManager cManager = factory.getDefaultConverterManager();
-            cManager.registerConverter(CuboidBlockClipboard.class, this);
+            cManager.registerConverter(this, CuboidBlockClipboard.class);
         }
 
         @Override
         public Node toNode(CuboidBlockClipboard object, ConverterManager manager) throws ConversionException
         {
             MapNode result = MapNode.emptyMap();
-            result.setExactNode("width",new IntNode(object.size.x));
-            result.setExactNode("height",new IntNode(object.size.y));
-            result.setExactNode("length",new IntNode(object.size.z));
+            result.set("width", new IntNode(object.size.x));
+            result.set("height", new IntNode(object.size.y));
+            result.set("length", new IntNode(object.size.z));
             if (object.relative != null)
             {
                 MapNode relative = MapNode.emptyMap();
-                result.setExactNode("relative",relative);
-                relative.setExactNode("x",new IntNode(object.relative.x));
-                relative.setExactNode("y",new IntNode(object.relative.y));
-                relative.setExactNode("z",new IntNode(object.relative.z));
+                result.set("relative", relative);
+                relative.set("x", new IntNode(object.relative.x));
+                relative.set("y", new IntNode(object.relative.y));
+                relative.set("z", new IntNode(object.relative.z));
             }
             ListNode tileEntities = ListNode.emptyList();
-            result.setExactNode("tileentities",tileEntities);
+            result.set("tileentities", tileEntities);
             Map<Material,Byte> materials = new HashMap<>();
             object.mappedMaterials = new HashMap<>();
             Byte[] blocks = new Byte[object.size.x * object.size.y * object.size.z];
@@ -215,9 +215,9 @@ public class CuboidBlockClipboard
                     }
                 }
             }
-            result.setExactNode("materials", manager.convertToNode(object.mappedMaterials));
-            result.setExactNode("blocks", manager.convertToNode(blocks));
-            result.setExactNode("data", manager.convertToNode(bData));
+            result.set("materials", manager.convertToNode(object.mappedMaterials));
+            result.set("blocks", manager.convertToNode(blocks));
+            result.set("data", manager.convertToNode(bData));
             return result;
         }
 
