@@ -86,7 +86,26 @@ $(function () {
         if (socket && socket.readyState == WebSocket.OPEN) {
             return;
         }
+
+        var user = null;
+        var pass = null;
+        var host = settings.host();
+        var atOffset = host.indexOf('@');
+        if (atOffset > -1) {
+            var auth = host.substring(0, atOffset).split(':');
+            host = host.substring(atOffset + 1);
+            user = auth[0];
+            if (auth.length > 1) {
+                pass = auth[1];
+            }
+        }
         var url = (settings.ssl() ? 'wss' : 'ws') + '://' + settings.host() + ':' + settings.port() + '/websocket';
+        if (user) {
+            url += '?user=' + user;
+            if (pass) {
+                url += '&pass=' + pass;
+            }
+        }
         socket = new WebSocket(url + location.search);
 
         socket.onopen = function () {
